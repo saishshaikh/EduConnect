@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from 'react'
 import Nav from '../components/Nav'
 import dp from "../assets/dp.webp"
 import { FiPlus, FiCamera } from "react-icons/fi";
-import { userDataContext } from '../context/userContext';
+import { userDataContext } from '../context/UserContext';
 import { HiPencil } from "react-icons/hi2";
 import EditProfile from '../components/EditProfile';
 import { RxCross1 } from "react-icons/rx";
