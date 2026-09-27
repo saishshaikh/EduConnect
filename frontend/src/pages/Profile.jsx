@@ -35,11 +35,17 @@ export default function Profile() {
 
   // Filter posts by active profile user
   const targetUser = profileData?._id ? profileData : userData;
-  const isOwnProfile = userData?._id === targetUser?._id;
-
-  const userPosts = postData.filter(
-    (p) => p.author?._id === targetUser?._id || p.author === targetUser?._id
+  const isOwnProfile = Boolean(
+    userData?._id &&
+    targetUser?._id &&
+    userData._id.toString() === targetUser._id.toString()
   );
+
+  const userPosts = (postData || []).filter((p) => {
+    const authorId = p.author?._id?.toString() || p.author?.toString();
+    const targetId = targetUser?._id?.toString();
+    return authorId && targetId && authorId === targetId;
+  });
 
   const handleShareProfile = () => {
     navigator.clipboard.writeText(`${window.location.origin}/profile`);

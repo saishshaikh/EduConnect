@@ -21,20 +21,37 @@ export default function Home() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [activeCommentPostId, setActiveCommentPostId] = useState(null);
   const [suggestedUsers, setSuggestedUsers] = useState([]);
+  const [connectedUsers, setConnectedUsers] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  // Fetch real connected users for stories bar
+  useEffect(() => {
+    const fetchConnections = async () => {
+      try {
+        const res = await axios.get(`${serverUrl}/api/connection`, {
+          withCredentials: true,
+        });
+        setConnectedUsers(res.data || []);
+      } catch (err) {
+        console.error("Error fetching connections for stories:", err);
+        setConnectedUsers([]);
+      }
+    };
+
+    if (userData?._id) {
+      fetchConnections();
+    }
+  }, [userData?._id, serverUrl]);
 
   // Fetch suggested connections for right rail on desktop
   useEffect(() => {
     const fetchSuggestions = async () => {
       try {
         setLoadingSuggestions(true);
-        const res = await axios.get(`${serverUrl}/api/user/search?query=a`, {
+        const res = await axios.get(`${serverUrl}/api/user/suggestedusers`, {
           withCredentials: true,
         });
-        const list = (res.data || []).filter(
-          (u) => u._id !== userData?._id
-        );
-        setSuggestedUsers(list.slice(0, 5));
+        setSuggestedUsers(res.data || []);
       } catch {
         setSuggestedUsers([]);
       } finally {
@@ -64,8 +81,8 @@ export default function Home() {
           {/* Main Feed Column */}
           <div className="w-full max-w-[490px] flex flex-col">
             
-            {/* Stories Section */}
-            <StoriesBar connections={suggestedUsers} />
+            {/* Stories Section: ONLY connected users */}
+            <StoriesBar connections={connectedUsers} />
 
             {/* Posts List */}
             {postData.length === 0 ? (

@@ -9,7 +9,7 @@ function UserContext({ children }) {
   const [userData, setUserData] = useState(null);
   const [edit, setEdit] = useState(false);
   const [postData, setPostData] = useState([]);
-  const [profileData, setProfileData] = useState([]);
+  const [profileData, setProfileData] = useState(null);
   const { serverUrl } = useContext(authDataContext);
   const navigate = useNavigate();
 
@@ -38,16 +38,27 @@ function UserContext({ children }) {
     }
   };
 
-  // Get profile by username
+  // Get profile by username or current user
   const handleGetProfile = async (userName) => {
     try {
-      const result = await axios.get(`${serverUrl}/api/user/profile/${userName}`, {
+      // If no userName provided, or matches logged-in user's username or ID
+      if (!userName || (userData && (userName === userData.userName || userName === userData._id))) {
+        setProfileData(userData);
+        navigate("/profile");
+        return;
+      }
+
+      const result = await axios.get(`${serverUrl}/api/user/profile/${encodeURIComponent(userName)}`, {
         withCredentials: true,
       });
       setProfileData(result.data);
       navigate("/profile");
     } catch (error) {
       console.error("Error fetching profile:", error);
+      if (userData) {
+        setProfileData(userData);
+        navigate("/profile");
+      }
     }
   };
 

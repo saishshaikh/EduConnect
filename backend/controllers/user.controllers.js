@@ -48,7 +48,18 @@ export const updateProfile = async (req, res) => {
 export const getprofile = async (req, res) => {
     try {
         const { userName } = req.params
-        const user = await User.findOne({ userName }).select("-password")
+        if (!userName) {
+            return res.status(400).json({ message: "Username or ID is required" })
+        }
+
+        const isObjectId = /^[0-9a-fA-F]{24}$/.test(userName.trim())
+        const user = await User.findOne({
+            $or: [
+                { userName: { $regex: new RegExp(`^${userName.trim()}$`, "i") } },
+                ...(isObjectId ? [{ _id: userName.trim() }] : [])
+            ]
+        }).select("-password")
+
         if (!user) {
             return res.status(404).json({ message: "Username does not exist" })
         }
@@ -62,18 +73,19 @@ export const getprofile = async (req, res) => {
 export const search = async (req, res) => {
     try {
         const { query } = req.query
-        if (!query) {
-            return res.status(400).json({ message: "Query is required" })
+        if (!query || !query.trim()) {
+            return res.status(200).json([])
         }
 
+        const cleanQuery = query.trim()
         const users = await User.find({
             $or: [
-                { firstName: { $regex: query, $options: "i" } },
-                { lastName: { $regex: query, $options: "i" } },
-                { userName: { $regex: query, $options: "i" } },
-                { skills: { $in: [query] } }
+                { firstName: { $regex: cleanQuery, $options: "i" } },
+                { lastName: { $regex: cleanQuery, $options: "i" } },
+                { userName: { $regex: cleanQuery, $options: "i" } },
+                { skills: { $regex: cleanQuery, $options: "i" } }
             ]
-        }).select("-password")
+        }).select("-password").limit(20)
 
         return res.status(200).json(users)
 

@@ -27,24 +27,29 @@ export default function Header({ onOpenCreatePost }) {
 
   const [searchInput, setSearchInput] = useState("");
   const [searchData, setSearchData] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
 
   const handleSearch = async () => {
     if (!searchInput.trim()) {
       setSearchData([]);
       setShowSearchDropdown(false);
+      setIsSearching(false);
       return;
     }
 
     try {
+      setIsSearching(true);
       const result = await axios.get(
-        `${serverUrl}/api/user/search?query=${searchInput.trim()}`,
+        `${serverUrl}/api/user/search?query=${encodeURIComponent(searchInput.trim())}`,
         { withCredentials: true }
       );
       setSearchData(result.data || []);
       setShowSearchDropdown(true);
     } catch {
       setSearchData([]);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -76,42 +81,56 @@ export default function Header({ onOpenCreatePost }) {
             <IoSearchOutline className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <input
               type="text"
-              placeholder="Search people..."
+              placeholder="Search people in database..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onFocus={() => searchInput.trim() && setShowSearchDropdown(true)}
               className="w-full bg-transparent outline-none text-[13px] text-gray-800 dark:text-gray-200 placeholder-gray-400"
             />
+            {isSearching && (
+              <div className="w-3.5 h-3.5 border-2 border-[#e1306c] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+            )}
           </div>
 
           {/* Search Dropdown */}
-          {showSearchDropdown && searchData.length > 0 && (
+          {showSearchDropdown && searchInput.trim() && (
             <div className="absolute top-[44px] left-0 w-full bg-white dark:bg-[#121212] border border-gray-200 dark:border-[#262626] rounded-xl shadow-2xl p-2 max-h-[360px] overflow-y-auto custom-scrollbar z-50">
-              {searchData.map((user) => (
-                <div
-                  key={user._id}
-                  onClick={() => {
-                    handleGetProfile(user.userName);
-                    setShowSearchDropdown(false);
-                    setSearchInput("");
-                  }}
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#1c1c1e] cursor-pointer transition"
-                >
-                  <img
-                    src={user.profileImage || dp}
-                    alt={user.firstName}
-                    className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-700"
-                  />
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-bold text-gray-900 dark:text-white truncate">
-                      {user.firstName} {user.lastName}
-                    </p>
-                    <p className="text-[12px] text-gray-500 dark:text-gray-400 truncate">
-                      @{user.userName}
-                    </p>
+              {searchData.length > 0 ? (
+                searchData.map((user) => (
+                  <div
+                    key={user._id}
+                    onClick={() => {
+                      handleGetProfile(user.userName);
+                      setShowSearchDropdown(false);
+                      setSearchInput("");
+                    }}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#1c1c1e] cursor-pointer transition"
+                  >
+                    <img
+                      src={user.profileImage || dp}
+                      alt={user.firstName}
+                      className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-700 flex-shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-bold text-gray-900 dark:text-white truncate">
+                        {user.firstName} {user.lastName}
+                      </p>
+                      <p className="text-[12px] text-gray-500 dark:text-gray-400 truncate">
+                        @{user.userName}
+                      </p>
+                      {user.headline && (
+                        <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
+                          {user.headline}
+                        </p>
+                      )}
+                    </div>
                   </div>
+                ))
+              ) : !isSearching ? (
+                <div className="p-4 text-center text-xs text-gray-500 dark:text-gray-400">
+                  No users found in database for "<span className="font-semibold text-gray-700 dark:text-gray-300">{searchInput}</span>"
                 </div>
-              ))}
+              ) : null}
             </div>
           )}
         </div>

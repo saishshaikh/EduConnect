@@ -33,14 +33,8 @@ export default function StoriesBar({ connections = [] }) {
     setViewedStories((prev) => ({ ...prev, [storyUser._id]: true }));
   };
 
-  // Sample stories data based on connected users
-  const storyList = connections.length > 0 ? connections : [
-    { _id: "sample1", firstName: "Aman", userName: "aman_code", profileImage: "" },
-    { _id: "sample2", firstName: "Priya", userName: "priya_dev", profileImage: "" },
-    { _id: "sample3", firstName: "Rahul", userName: "rahul_ui", profileImage: "" },
-    { _id: "sample4", firstName: "Sneha", userName: "sneha_ai", profileImage: "" },
-    { _id: "sample5", firstName: "Karan", userName: "karan_edu", profileImage: "" },
-  ];
+  // Only show real connected users
+  const storyList = Array.isArray(connections) ? connections : [];
 
   return (
     <div className="w-full bg-white dark:bg-[#121212] rounded-2xl border border-gray-200/80 dark:border-[#262626] p-3.5 mb-4 shadow-xs overflow-hidden transition-colors">
