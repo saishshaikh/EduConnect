@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import axios from "axios";
-import { userDataContext } from "./userContext";
+import { userDataContext } from "./UserContext";
 import { authDataContext } from "./AuthContext";
 import { SocketContext } from "./SocketContext";
 

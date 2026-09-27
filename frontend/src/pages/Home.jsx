@@ -9,7 +9,7 @@ import PostCard from "../components/PostCard";
 import CreatePostModal from "../components/CreatePostModal";
 import CommentModal from "../components/CommentModal";
 import dp from "../assets/dp.webp";
-import { userDataContext } from "../context/userContext";
+import { userDataContext } from "../context/UserContext";
 import { authDataContext } from "../context/AuthContext";
 import ConnectionButton from "../components/ConnectionButton";
 

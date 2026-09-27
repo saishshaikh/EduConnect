@@ -6,7 +6,7 @@ import BottomNav from "../components/BottomNav";
 import CreatePostModal from "../components/CreatePostModal";
 import CommentModal from "../components/CommentModal";
 import dp from "../assets/dp.webp";
-import { userDataContext } from "../context/userContext";
+import { userDataContext } from "../context/UserContext";
 
 export default function Explore() {
   const { postData, handleGetProfile } = useContext(userDataContext);

@@ -18,7 +18,7 @@ import {
 import { FaUserGroup } from "react-icons/fa6";
 import { FiCompass } from "react-icons/fi";
 import dp from "../assets/dp.webp";
-import { userDataContext } from "../context/userContext";
+import { userDataContext } from "../context/UserContext";
 import { authDataContext } from "../context/AuthContext";
 import { SocketContext } from "../context/SocketContext";
 import { ThemeContext } from "../context/ThemeContext";

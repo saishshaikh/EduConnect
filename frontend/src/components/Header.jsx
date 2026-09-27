@@ -11,7 +11,7 @@ import {
 } from "react-icons/io5";
 import { BsChatDots } from "react-icons/bs";
 import dp from "../assets/dp.webp";
-import { userDataContext } from "../context/userContext";
+import { userDataContext } from "../context/UserContext";
 import { authDataContext } from "../context/AuthContext";
 import { SocketContext } from "../context/SocketContext";
 import { ThemeContext } from "../context/ThemeContext";

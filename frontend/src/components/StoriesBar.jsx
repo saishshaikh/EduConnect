@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect } from "react";
 import { IoAdd, IoClose } from "react-icons/io5";
 import dp from "../assets/dp.webp";
-import { userDataContext } from "../context/userContext";
+import { userDataContext } from "../context/UserContext";
 
 export default function StoriesBar({ connections = [] }) {
   const { userData, handleGetProfile } = useContext(userDataContext);

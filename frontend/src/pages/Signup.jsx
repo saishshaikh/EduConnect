@@ -2,7 +2,7 @@ import React, { useContext, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { authDataContext } from "../context/AuthContext";
 import axios from "axios";
-import { userDataContext } from "../context/userContext";
+import { userDataContext } from "../context/UserContext";
 import { IoEyeOutline, IoEyeOffOutline, IoCamera } from "react-icons/io5";
 import dp from "../assets/dp.webp";
 

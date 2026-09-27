@@ -7,7 +7,7 @@ import SidebarNav from "../components/SidebarNav";
 import BottomNav from "../components/BottomNav";
 import CreatePostModal from "../components/CreatePostModal";
 import dp from "../assets/dp.webp";
-import { userDataContext } from "../context/userContext";
+import { userDataContext } from "../context/UserContext";
 import { authDataContext } from "../context/AuthContext";
 
 export default function Notification() {

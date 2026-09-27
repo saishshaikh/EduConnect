@@ -22,7 +22,7 @@ import CreatePostModal from "../components/CreatePostModal";
 import CameraModal from "../components/CameraModal";
 import TypingIndicator from "../components/TypingIndicator";
 import dp from "../assets/dp.webp";
-import { userDataContext } from "../context/userContext";
+import { userDataContext } from "../context/UserContext";
 import { authDataContext } from "../context/AuthContext";
 import { SocketContext } from "../context/SocketContext";
 import { CallContext } from "../context/CallContext";

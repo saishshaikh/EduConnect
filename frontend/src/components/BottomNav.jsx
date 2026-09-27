@@ -12,7 +12,7 @@ import {
 } from "react-icons/io5";
 import { FaUserGroup } from "react-icons/fa6";
 import dp from "../assets/dp.webp";
-import { userDataContext } from "../context/userContext";
+import { userDataContext } from "../context/UserContext";
 
 export default function BottomNav({ onOpenCreatePost }) {
   const { userData, handleGetProfile } = useContext(userDataContext);

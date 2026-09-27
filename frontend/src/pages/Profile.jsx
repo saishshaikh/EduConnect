@@ -21,7 +21,7 @@ import EditProfileModal from "../components/EditProfileModal";
 import CommentModal from "../components/CommentModal";
 import ConnectionButton from "../components/ConnectionButton";
 import dp from "../assets/dp.webp";
-import { userDataContext } from "../context/userContext";
+import { userDataContext } from "../context/UserContext";
 
 export default function Profile() {
   const { userData, profileData, postData } = useContext(userDataContext);

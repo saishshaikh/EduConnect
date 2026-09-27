@@ -2,7 +2,7 @@ import React, { useContext, useState, useRef } from "react";
 import axios from "axios";
 import { IoClose, IoCamera, IoAdd, IoTrash } from "react-icons/io5";
 import dp from "../assets/dp.webp";
-import { userDataContext } from "../context/userContext";
+import { userDataContext } from "../context/UserContext";
 import { authDataContext } from "../context/AuthContext";
 
 export default function EditProfileModal({ isOpen, onClose }) {
