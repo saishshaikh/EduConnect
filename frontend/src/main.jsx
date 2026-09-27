@@ -5,14 +5,23 @@ import App from './App.jsx'
 import { BrowserRouter } from 'react-router-dom'
 import AuthContext from './context/AuthContext.jsx'
 import UserContext from './context/userContext.jsx'
+import SocketProvider from './context/SocketContext.jsx'
+import CallProvider from './context/CallContext.jsx'
+
+import ThemeProvider from './context/ThemeContext.jsx'
 
 createRoot(document.getElementById('root')).render(
- <BrowserRouter>
- <AuthContext>
-<UserContext>
-    <App />
-</UserContext>
-</AuthContext>
-</BrowserRouter>
- 
+  <BrowserRouter>
+    <ThemeProvider>
+      <AuthContext>
+        <UserContext>
+          <SocketProvider>
+            <CallProvider>
+              <App />
+            </CallProvider>
+          </SocketProvider>
+        </UserContext>
+      </AuthContext>
+    </ThemeProvider>
+  </BrowserRouter>
 )

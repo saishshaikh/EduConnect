@@ -1,77 +1,203 @@
-import React, { useContext, useEffect, useState } from 'react'
-import Nav from '../components/Nav'
-import axios from 'axios'
-import { authDataContext } from '../context/AuthContext'
-import dp from "../assets/dp.webp"
-import { IoIosCheckmarkCircleOutline } from "react-icons/io";
-import { RxCrossCircled } from "react-icons/rx";
+import React, { useContext, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import {
+  IoCheckmarkOutline,
+  IoCloseOutline,
+  IoChatbubbleEllipsesOutline,
+  IoPeopleOutline,
+} from "react-icons/io5";
+import Header from "../components/Header";
+import SidebarNav from "../components/SidebarNav";
+import BottomNav from "../components/BottomNav";
+import CreatePostModal from "../components/CreatePostModal";
+import dp from "../assets/dp.webp";
+import { userDataContext } from "../context/userContext";
+import { authDataContext } from "../context/AuthContext";
 
-import io from "socket.io-client"
+export default function Network() {
+  const { userData, handleGetProfile } = useContext(userDataContext);
+  const { serverUrl } = useContext(authDataContext);
+  const navigate = useNavigate();
 
-const socket=io("http://localhost:8000")
-function Network() {
-let {serverUrl}=useContext(authDataContext)
-let [connections,setConnections]=useState([])
-    const handleGetRequests=async ()=>{
-        try {
-            let result=await axios.get(`${serverUrl}/api/connection/requests`,{withCredentials:true})
-            setConnections(result.data)
-        } catch (error) {
-           console.log(error) 
-        }
+  const [requests, setRequests] = useState([]);
+  const [connections, setConnections] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("invitations"); // "invitations" | "connections"
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  // Fetch pending requests
+  const handleGetRequests = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${serverUrl}/api/connection/requests`, {
+        withCredentials: true,
+      });
+      setRequests(res.data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    const handleAcceptConnection=async (requestId)=>{
-try {
-    let result = await axios.put(`${serverUrl}/api/connection/accept/${requestId}`,{},{withCredentials:true})
-    setConnections(connections.filter((con)=>con._id!=requestId))
-} catch (error) {
-    console.log(error)
-}
-    }
-    const handleRejectConnection=async (requestId)=>{
-        try {
-            let result = await axios.put(`${serverUrl}/api/connection/reject/${requestId}`,{},{withCredentials:true})
-            setConnections(connections.filter((con)=>con._id===requestId))
-        } catch (error) {
-            console.log(error)
-        }
-            }
+  };
 
-            
-    useEffect(()=>{
-        handleGetRequests()
-    },[])
+  const handleAcceptConnection = async (requestId) => {
+    try {
+      await axios.put(
+        `${serverUrl}/api/connection/accept/${requestId}`,
+        {},
+        { withCredentials: true }
+      );
+      setRequests((prev) => prev.filter((con) => con._id !== requestId));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRejectConnection = async (requestId) => {
+    try {
+      await axios.put(
+        `${serverUrl}/api/connection/reject/${requestId}`,
+        {},
+        { withCredentials: true }
+      );
+      setRequests((prev) => prev.filter((con) => con._id !== requestId));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    handleGetRequests();
+  }, []);
+
   return (
-    <div className='w-screen h-[100vh] bg-[#f0efe7] pt-[100px] px-[20px] flex flex-col items-center gap-[40px]'>
-        <Nav/>
-      <div className='w-full h-[100px] bg-[white] shadow-lg rounded-lg flex items-center p-[10px] text-[22px] text-gray-600'>
-Invitations {connections.length}
+    <div className="min-h-screen bg-[#fafafa] dark:bg-[#000000] text-gray-900 dark:text-[#f4f4f5] flex flex-col md:flex-row transition-colors duration-200">
+      
+      <SidebarNav onOpenCreatePost={() => setIsCreateOpen(true)} />
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header onOpenCreatePost={() => setIsCreateOpen(true)} />
+
+        <main className="flex-1 max-w-[860px] w-full mx-auto px-4 py-6 pb-20 md:pb-8 flex flex-col gap-6">
+          
+          {/* Header & Tabs */}
+          <div className="flex items-center justify-between pb-2 border-b border-gray-200/80 dark:border-[#262626]">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                Network
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Connect and collaborate with students & educators
+              </p>
+            </div>
+
+            <div className="flex bg-gray-100 dark:bg-[#1c1c1e] p-1 rounded-xl text-xs font-bold">
+              <button
+                onClick={() => setActiveTab("invitations")}
+                className={`px-3 py-1.5 rounded-lg transition ${
+                  activeTab === "invitations"
+                    ? "bg-white dark:bg-[#121212] text-gray-900 dark:text-white shadow-xs"
+                    : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                }`}
+              >
+                Invitations ({requests.length})
+              </button>
+            </div>
+          </div>
+
+          {/* Invitations List */}
+          {activeTab === "invitations" && (
+            <div>
+              {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="p-4 bg-white dark:bg-[#121212] rounded-2xl border border-gray-200/80 dark:border-[#262626] animate-pulse flex items-center gap-3"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-800" />
+                      <div className="flex-1 flex flex-col gap-2">
+                        <div className="w-28 h-3 bg-gray-200 dark:bg-gray-800 rounded" />
+                        <div className="w-40 h-2 bg-gray-100 dark:bg-gray-900 rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : requests.length === 0 ? (
+                <div className="py-20 text-center text-gray-400 flex flex-col items-center gap-2">
+                  <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-[#121212] flex items-center justify-center text-2xl">
+                    <IoPeopleOutline className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                    No Pending Invitations
+                  </h3>
+                  <p className="text-xs text-gray-500 max-w-[260px]">
+                    You're all caught up! Explore and connect with new peers.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {requests.map((req) => (
+                    <div
+                      key={req._id}
+                      className="p-4 bg-white dark:bg-[#121212] rounded-2xl border border-gray-200/80 dark:border-[#262626] shadow-xs flex items-center justify-between gap-3"
+                    >
+                      <div
+                        onClick={() =>
+                          req.sender?.userName && handleGetProfile(req.sender.userName)
+                        }
+                        className="flex items-center gap-3 cursor-pointer min-w-0"
+                      >
+                        <img
+                          src={req.sender?.profileImage || dp}
+                          alt=""
+                          className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-gray-700 flex-shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                            {req.sender?.firstName} {req.sender?.lastName}
+                          </p>
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                            {req.sender?.headline || `@${req.sender?.userName}`}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          onClick={() => handleAcceptConnection(req._id)}
+                          className="px-3 py-1.5 rounded-lg bg-[#0095f6] hover:bg-[#0074cc] text-white text-xs font-bold flex items-center gap-1 shadow-xs transition"
+                        >
+                          <IoCheckmarkOutline className="w-4 h-4" />
+                          <span>Accept</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleRejectConnection(req._id)}
+                          className="p-1.5 rounded-lg bg-gray-100 dark:bg-[#1c1c1e] text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
+                        >
+                          <IoCloseOutline className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+        </main>
+
+        <BottomNav onOpenCreatePost={() => setIsCreateOpen(true)} />
       </div>
 
-      {connections.length>0 &&  <div className='w-[100%] max-w-[900px]  bg-white shadow-lg rounded-lg flex flex-col gap-[20px] min-h-[100px]'>
-    {connections.map((connection,index)=>(
-        <div className='w-full min-h-[100px] p-[20px] flex justify-between items-center' key={index}>
-          <div className='flex justify-center items-center gap-[10px]'>
-<div className='w-[60px] h-[60px] rounded-full overflow-hidden cursor-pointer'>
-            <img src={connection.sender.profileImage || dp} alt="" className='w-full h-full'/>
-        </div>
-        <div className='text-[19px] font-semibold text-gray-700'>{`${connection.sender.firstName} ${connection.sender.lastName}`}</div>
-            </div>  
-        <div className='flex justify-center items-center gap-[10px]'>
-<button className='text-[#18c5ff] font-semibold' onClick={()=>handleAcceptConnection(connection._id)}>
-<IoIosCheckmarkCircleOutline className='w-[40px] h-[40px]'/>
-</button>
-<button className='text-[#ff4218] font-semibold' onClick={()=>handleRejectConnection(connection._id)}>
-<RxCrossCircled className='w-[36px] h-[36px]'/>
-</button>
-        </div> 
-        </div>
-    ))}
-  </div>}
- 
+      <CreatePostModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+      />
 
     </div>
-  )
+  );
 }
-
-export default Network

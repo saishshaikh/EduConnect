@@ -1,135 +1,125 @@
-import React, { useContext, useState, useEffect } from 'react'
-import { useNavigate } from "react-router-dom"
-import { authDataContext } from '../context/AuthContext'
-import axios from "axios"
-import { userDataContext } from '../context/userContext'
+import React, { useContext, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { authDataContext } from "../context/AuthContext";
+import axios from "axios";
+import { userDataContext } from "../context/userContext";
+import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 
-function Login() {
-  let [show, setShow] = useState(false)
-  let { serverUrl } = useContext(authDataContext)
-  let { userData, setUserData } = useContext(userDataContext)
-  let navigate = useNavigate()
-  let [email, setEmail] = useState("")
-  let [password, setPassword] = useState("")
-  let [loading, setLoading] = useState(false)
-  let [err, setErr] = useState("")
+export default function Login() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
 
-  // Typing animation
-  const fullText = "Learn. Connect. Grow."
-  const [displayText, setDisplayText] = useState("")
-  const [index, setIndex] = useState(0)
-
-  useEffect(() => {
-    let timeout
-
-    if (index < fullText.length) {
-      timeout = setTimeout(() => {
-        setDisplayText(prev => prev + fullText[index])
-        setIndex(index + 1)
-      }, 120)
-    } else {
-      // Restart animation after small pause
-      timeout = setTimeout(() => {
-        setDisplayText("")
-        setIndex(0)
-      }, 1500)
-    }
-
-    return () => clearTimeout(timeout)
-  }, [index])
+  const { serverUrl } = useContext(authDataContext);
+  const { setUserData } = useContext(userDataContext);
+  const navigate = useNavigate();
 
   const handleSignIn = async (e) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    if (!email.trim() || !password.trim()) return;
+
     try {
-      let result = await axios.post(serverUrl + "/api/auth/login", {
-        email,
-        password
-      }, { withCredentials: true })
-      setUserData(result.data)
-      navigate("/")
-      setErr("")
-      setLoading(false)
-      setEmail("")
-      setPassword("")
+      setLoading(true);
+      setErr("");
+      const result = await axios.post(
+        `${serverUrl}/api/auth/login`,
+        { email: email.trim(), password: password.trim() },
+        { withCredentials: true }
+      );
+      setUserData(result.data);
+      navigate("/");
     } catch (error) {
-      setErr(error.response.data.message)
-      setLoading(false)
+      setErr(error.response?.data?.message || "Invalid credentials. Please try again.");
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className='w-full h-screen bg-[white] flex flex-col items-center justify-start gap-[10px]'>
-      
-      {/* Nav Bar */}
-      <div className='p-[30px] lg:p-[35px] w-full flex flex-col items-start'>
+    <div className="min-h-screen bg-[#fafafa] dark:bg-[#000000] text-gray-900 dark:text-[#f4f4f5] flex flex-col items-center justify-center p-4 transition-colors">
+      <div className="w-full max-w-[360px] flex flex-col gap-3">
+        
+        {/* Main Card */}
+        <div className="bg-white dark:bg-[#121212] border border-gray-200/80 dark:border-[#262626] rounded-2xl p-8 flex flex-col items-center shadow-xs">
+          
+          {/* Logo */}
+          <div className="mb-8 flex flex-col items-center select-none">
+            <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-[#e1306c] via-[#fd1d1d] to-[#833ab4] bg-clip-text text-transparent">
+              EduConnect
+            </h1>
+            <p className="text-xs text-gray-400 dark:text-gray-500 font-medium mt-1">
+              Learn. Connect. Grow.
+            </p>
+          </div>
 
-        <h1 className='text-black text-[42px] font-extrabold leading-none'>
-          EduConnect
-        </h1>
+          {/* Form */}
+          <form onSubmit={handleSignIn} className="w-full flex flex-col gap-3">
+            <div>
+              <input
+                type="email"
+                placeholder="Email address"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full h-11 bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-800 focus:border-gray-400 dark:focus:border-gray-600 rounded-xl px-3.5 text-xs text-gray-900 dark:text-white outline-none transition"
+              />
+            </div>
 
-        <p className='text-gray-900 text-[17px] mt-[6px] tracking-wide min-h-[26px] font-medium'>
-          {displayText}
-          <span className='animate-pulse font-bold'>|</span>
-        </p>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full h-11 bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-800 focus:border-gray-400 dark:focus:border-gray-600 rounded-xl px-3.5 pr-10 text-xs text-gray-900 dark:text-white outline-none transition"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                {showPassword ? (
+                  <IoEyeOffOutline className="w-5 h-5" />
+                ) : (
+                  <IoEyeOutline className="w-5 h-5" />
+                )}
+              </button>
+            </div>
 
-      </div>
+            {err && (
+              <p className="text-xs text-red-500 text-center font-medium my-1">
+                {err}
+              </p>
+            )}
 
-      {/* Login Form */}
-      <form 
-        className='w-[90%] max-w-[400px] h-[600px] md:shadow-xl flex flex-col justify-center gap-[10px] p-[15px]' 
-        onSubmit={handleSignIn}
-      >
-        <h1 className='text-gray-800 text-[30px] font-semibold mb-[30px]'>Sign In</h1>
+            <button
+              type="submit"
+              disabled={loading || !email.trim() || !password.trim()}
+              className="w-full h-10 mt-2 bg-[#0095f6] hover:bg-[#0074cc] text-white rounded-xl text-xs font-bold transition disabled:opacity-40 shadow-xs"
+            >
+              {loading ? "Logging in..." : "Log In"}
+            </button>
+          </form>
 
-        <input
-          type="email"
-          placeholder='email'
-          required
-          className='w-[100%] h-[50px] border-2 border-gray-600 text-gray-800 text-[18px] px-[20px] py-[10px] rounded-md'
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <div className='w-[100%] h-[50px] border-2 border-gray-600 text-gray-800 text-[18px] rounded-md relative'>
-          <input
-            type={show ? "text" : "password"}
-            placeholder='password'
-            required
-            className='w-full h-full border-none text-gray-800 text-[18px] px-[20px] py-[10px] rounded-md'
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <span
-            className='absolute right-[20px] top-[10px] text-black cursor-pointer font-semibold'
-            onClick={() => setShow(prev => !prev)}
-          >
-            {show ? "hide" : "show"}
-          </span>
         </div>
 
-        {err && (
-          <p className='text-center text-red-500'>
-            *{err}
-          </p>
-        )}
+        {/* Signup Box */}
+        <div className="bg-white dark:bg-[#121212] border border-gray-200/80 dark:border-[#262626] rounded-2xl p-5 text-center text-xs shadow-xs">
+          <span className="text-gray-500 dark:text-gray-400">
+            Don't have an account?{" "}
+          </span>
+          <button
+            onClick={() => navigate("/signup")}
+            className="text-[#0095f6] font-bold hover:underline"
+          >
+            Sign up
+          </button>
+        </div>
 
-        <button
-          className='w-[100%] h-[50px] rounded-full bg-black mt-[40px] text-white'
-          disabled={loading}
-        >
-          {loading ? "Loading..." : "Sign In"}
-        </button>
-
-        <p
-          className='text-center cursor-pointer'
-          onClick={() => navigate("/signup")}
-        >
-          want to create a new account? <span className='text-black font-semibold'>Sign Up</span>
-        </p>
-      </form>
+      </div>
     </div>
-  )
+  );
 }
-
-export default Login

@@ -13,7 +13,7 @@ export const createPost = async (req, res) => {
             newPost = await Post.create({
                 author: req.userId,
                 description,
-                image: result.secure_url
+                image: typeof result === "string" ? result : result?.secure_url
             })
         } else {
             newPost = await Post.create({

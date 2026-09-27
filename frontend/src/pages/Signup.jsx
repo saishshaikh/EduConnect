@@ -1,201 +1,217 @@
-import { useNavigate } from "react-router-dom"
-import { authDataContext } from '../context/AuthContext'
-import axios from "axios"
-import { userDataContext } from '../context/userContext'
-import { useState, useEffect, useContext } from "react"
+import React, { useContext, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { authDataContext } from "../context/AuthContext";
+import axios from "axios";
+import { userDataContext } from "../context/userContext";
+import { IoEyeOutline, IoEyeOffOutline, IoCamera } from "react-icons/io5";
+import dp from "../assets/dp.webp";
 
-function Signup() {
+export default function Signup() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [userName, setUserName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [profilePic, setProfilePic] = useState(null);
+  const [profilePicPreview, setProfilePicPreview] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
 
-  let [show, setShow] = useState(false)
-  let { serverUrl } = useContext(authDataContext)
-  let { userData, setUserData } = useContext(userDataContext)
-  let navigate = useNavigate()
+  const fileInputRef = useRef(null);
+  const { serverUrl } = useContext(authDataContext);
+  const { setUserData } = useContext(userDataContext);
+  const navigate = useNavigate();
 
-  let [firstName, setFirstName] = useState("")
-  let [lastName, setLastName] = useState("")
-  let [userName, setUserName] = useState("")
-  let [email, setEmail] = useState("")
-  let [password, setPassword] = useState("")
-  let [profilePic, setProfilePic] = useState(null)   // ✅ Added
-  let [loading, setLoading] = useState(false)
-  let [err, setErr] = useState("")
-
-  // Typing animation
-  const fullText = "Learn. Connect. Grow."
-  const [displayText, setDisplayText] = useState("")
-  const [index, setIndex] = useState(0)
-
-  useEffect(() => {
-    let timeout
-
-    if (index < fullText.length) {
-      timeout = setTimeout(() => {
-        setDisplayText(prev => prev + fullText[index])
-        setIndex(index + 1)
-      }, 120)
-    } else {
-      timeout = setTimeout(() => {
-        setDisplayText("")
-        setIndex(0)
-      }, 1500)
-    }
-
-    return () => clearTimeout(timeout)
-  }, [index])
+  const handlePicChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProfilePic(file);
+    setProfilePicPreview(URL.createObjectURL(file));
+  };
 
   const handleSignUp = async (e) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    if (!firstName.trim() || !lastName.trim() || !userName.trim() || !email.trim() || !password.trim()) {
+      return;
+    }
 
     try {
+      setLoading(true);
+      setErr("");
 
-      const formData = new FormData()   // ✅ Added
-
-      formData.append("firstName", firstName)
-      formData.append("lastName", lastName)
-      formData.append("userName", userName)
-      formData.append("email", email)
-      formData.append("password", password)
+      const formData = new FormData();
+      formData.append("firstName", firstName.trim());
+      formData.append("lastName", lastName.trim());
+      formData.append("userName", userName.trim().toLowerCase());
+      formData.append("email", email.trim());
+      formData.append("password", password.trim());
 
       if (profilePic) {
-        formData.append("profilePic", profilePic)
+        formData.append("profilePic", profilePic);
       }
 
-      let result = await axios.post(
-        serverUrl + "/api/auth/signup",
+      const result = await axios.post(
+        `${serverUrl}/api/auth/signup`,
         formData,
         {
           withCredentials: true,
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+          headers: { "Content-Type": "multipart/form-data" },
         }
-      )
+      );
 
-      setUserData(result.data)
-      navigate("/")
-      setErr("")
-      setLoading(false)
-
-      setFirstName("")
-      setLastName("")
-      setUserName("")
-      setEmail("")
-      setPassword("")
-      setProfilePic(null)
-
+      setUserData(result.data);
+      navigate("/");
     } catch (error) {
-      setErr(error.response?.data?.message || "Signup failed")
-      setLoading(false)
+      setErr(error.response?.data?.message || "Signup failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className='w-full h-screen bg-[white] flex flex-col items-center justify-start gap-[10px]'>
+    <div className="min-h-screen bg-[#fafafa] dark:bg-[#000000] text-gray-900 dark:text-[#f4f4f5] flex flex-col items-center justify-center p-4 transition-colors">
+      <div className="w-full max-w-[360px] flex flex-col gap-3 my-6">
+        
+        {/* Main Card */}
+        <div className="bg-white dark:bg-[#121212] border border-gray-200/80 dark:border-[#262626] rounded-2xl p-7 flex flex-col items-center shadow-xs">
+          
+          {/* Logo */}
+          <div className="mb-4 flex flex-col items-center select-none text-center">
+            <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-[#e1306c] via-[#fd1d1d] to-[#833ab4] bg-clip-text text-transparent">
+              EduConnect
+            </h1>
+            <p className="text-xs text-gray-400 dark:text-gray-500 font-semibold mt-1">
+              Sign up to connect, learn, and grow.
+            </p>
+          </div>
 
-      {/* Nav Bar */}
-      <div className='p-[30px] lg:p-[35px] w-full flex flex-col items-start'>
+          {/* Profile Picture Selector */}
+          <div className="mb-4 relative">
+            <div className="w-16 h-16 rounded-full story-gradient p-[2px]">
+              <div className="w-full h-full rounded-full bg-white dark:bg-[#121212] p-[1.5px] overflow-hidden">
+                <img
+                  src={profilePicPreview || dp}
+                  alt=""
+                  className="w-full h-full rounded-full object-cover"
+                />
+              </div>
+            </div>
 
-        <h1 className='text-black text-[42px] font-extrabold leading-none'>
-          EduConnect
-        </h1>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute bottom-0 right-0 p-1 bg-[#0095f6] text-white rounded-full border-2 border-white dark:border-[#121212] shadow-xs hover:bg-[#0074cc] transition"
+            >
+              <IoCamera className="w-3.5 h-3.5" />
+            </button>
 
-        <p className='text-gray-900 text-[17px] mt-[6px] tracking-wide min-h-[26px] font-medium'>
-          {displayText}
-          <span className='font-bold animate-pulse'>|</span>
-        </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePicChange}
+              className="hidden"
+            />
+          </div>
 
-      </div>
+          {/* Form */}
+          <form onSubmit={handleSignUp} className="w-full flex flex-col gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="First name"
+                required
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="w-full h-10 bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-800 focus:border-gray-400 dark:focus:border-gray-600 rounded-xl px-3 text-xs text-gray-900 dark:text-white outline-none transition"
+              />
 
-      {/* Signup Form */}
-      <form 
-        className='w-[90%] max-w-[400px] h-[600px] md:shadow-xl flex flex-col justify-center gap-[10px] p-[15px]' 
-        onSubmit={handleSignUp}
-      >
+              <input
+                type="text"
+                placeholder="Last name"
+                required
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="w-full h-10 bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-800 focus:border-gray-400 dark:focus:border-gray-600 rounded-xl px-3 text-xs text-gray-900 dark:text-white outline-none transition"
+              />
+            </div>
 
-        <h1 className='text-gray-800 text-[30px] font-semibold mb-[30px]'>Sign Up</h1>
+            <div>
+              <input
+                type="text"
+                placeholder="Username"
+                required
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                className="w-full h-10 bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-800 focus:border-gray-400 dark:focus:border-gray-600 rounded-xl px-3 text-xs text-gray-900 dark:text-white outline-none transition"
+              />
+            </div>
 
-        <input 
-          type="text" 
-          placeholder='firstname' 
-          required 
-          className='w-[100%] h-[50px] border-2 border-gray-600 text-gray-800 text-[18px] px-[20px] py-[10px] rounded-md' 
-          value={firstName} 
-          onChange={(e) => setFirstName(e.target.value)} 
-        />
+            <div>
+              <input
+                type="email"
+                placeholder="Email address"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full h-10 bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-800 focus:border-gray-400 dark:focus:border-gray-600 rounded-xl px-3 text-xs text-gray-900 dark:text-white outline-none transition"
+              />
+            </div>
 
-        <input 
-          type="text" 
-          placeholder='lastname' 
-          required 
-          className='w-[100%] h-[50px] border-2 border-gray-600 text-gray-800 text-[18px] px-[20px] py-[10px] rounded-md' 
-          value={lastName} 
-          onChange={(e) => setLastName(e.target.value)} 
-        />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full h-10 bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-800 focus:border-gray-400 dark:focus:border-gray-600 rounded-xl px-3 pr-9 text-xs text-gray-900 dark:text-white outline-none transition"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                {showPassword ? (
+                  <IoEyeOffOutline className="w-4 h-4" />
+                ) : (
+                  <IoEyeOutline className="w-4 h-4" />
+                )}
+              </button>
+            </div>
 
-        <input 
-          type="text" 
-          placeholder='userName' 
-          required 
-          className='w-[100%] h-[50px] border-2 border-gray-600 text-gray-800 text-[18px] px-[20px] py-[10px] rounded-md' 
-          value={userName} 
-          onChange={(e) => setUserName(e.target.value)} 
-        />
+            {err && (
+              <p className="text-xs text-red-500 text-center font-medium my-0.5">
+                {err}
+              </p>
+            )}
 
-        <input 
-          type="email" 
-          placeholder='email' 
-          required 
-          className='w-[100%] h-[50px] border-2 border-gray-600 text-gray-800 text-[18px] px-[20px] py-[10px] rounded-md' 
-          value={email} 
-          onChange={(e) => setEmail(e.target.value)} 
-        />
-
-        <div className='w-[100%] h-[50px] border-2 border-gray-600 text-gray-800 text-[18px] rounded-md relative'>
-
-          <input 
-            type={show ? "text" : "password"} 
-            placeholder='password' 
-            required 
-            className='w-full h-full border-none text-gray-800 text-[18px] px-[20px] py-[10px] rounded-md' 
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)} 
-          />
-
-          <span 
-            className='absolute right-[20px] top-[10px] text-black cursor-pointer font-semibold' 
-            onClick={() => setShow(prev => !prev)}
-          >
-            {show ? "hide" : "show"}
-          </span>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-10 mt-2 bg-[#0095f6] hover:bg-[#0074cc] text-white rounded-xl text-xs font-bold transition disabled:opacity-40 shadow-xs"
+            >
+              {loading ? "Signing up..." : "Sign Up"}
+            </button>
+          </form>
 
         </div>
 
-      
-        
-        {err && (
-          <p className='text-center text-red-500'>
-            *{err}
-          </p>
-        )}
+        {/* Login Prompt Box */}
+        <div className="bg-white dark:bg-[#121212] border border-gray-200/80 dark:border-[#262626] rounded-2xl p-5 text-center text-xs shadow-xs">
+          <span className="text-gray-500 dark:text-gray-400">
+            Have an account?{" "}
+          </span>
+          <button
+            onClick={() => navigate("/login")}
+            className="text-[#0095f6] font-bold hover:underline"
+          >
+            Log in
+          </button>
+        </div>
 
-        <button 
-          className='w-[100%] h-[50px] rounded-full bg-black mt-[40px] text-white' 
-          disabled={loading}
-        >
-          {loading ? "Loading..." : "Sign Up"}
-        </button>
-
-        <p 
-          className='text-center cursor-pointer' 
-          onClick={() => navigate("/login")}
-        >
-          Already have an account ? <span className='font-semibold text-black'>Sign In</span>
-        </p>
-
-      </form>
+      </div>
     </div>
-  )
+  );
 }
-
-export default Signup

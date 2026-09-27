@@ -1,11 +1,12 @@
 import React, { useContext, useEffect, useState } from 'react'
-import { IoSearchSharp } from "react-icons/io5";
+import { IoSearchSharp, IoChatbubbleEllipsesSharp } from "react-icons/io5";
 import { TiHome } from "react-icons/ti";
 import { FaUserGroup } from "react-icons/fa6";
 import { IoNotificationsSharp } from "react-icons/io5";
 import dp from "../assets/dp.webp"
 import { userDataContext } from '../context/userContext';
 import { authDataContext } from '../context/AuthContext';
+import { SocketContext } from '../context/SocketContext';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,6 +14,7 @@ function Nav() {
 
   let [activeSearch, setActiveSearch] = useState(false)
   let { userData, setUserData, handleGetProfile } = useContext(userDataContext)
+  let { socket, unreadTotal, setUnreadTotal, activeConversationId } = useContext(SocketContext)
   let [showPopup, setShowPopup] = useState(false)
 
   let navigate = useNavigate()
@@ -20,6 +22,45 @@ function Nav() {
 
   let [searchInput, setSearchInput] = useState("")
   let [searchData, setSearchData] = useState([])
+
+  // Fetch unread count on mount
+  const fetchUnreadCount = async () => {
+    if (!userData?._id) return
+    try {
+      const res = await axios.get(`${serverUrl}/api/message/unread`, { withCredentials: true })
+      setUnreadTotal(res.data.unreadCount || 0)
+    } catch {}
+  }
+
+  useEffect(() => {
+    fetchUnreadCount()
+  }, [userData?._id])
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleNewMessage = (payload) => {
+      const { message } = payload
+      if (
+        message?.receiver?.toString() === userData?._id?.toString() &&
+        activeConversationId !== message.conversationId?.toString()
+      ) {
+        setUnreadTotal((prev) => prev + 1)
+      }
+    }
+
+    const handleMessagesRead = () => {
+      fetchUnreadCount()
+    }
+
+    socket.on("newMessage", handleNewMessage)
+    socket.on("messagesRead", handleMessagesRead)
+
+    return () => {
+      socket.off("newMessage", handleNewMessage)
+      socket.off("messagesRead", handleMessagesRead)
+    }
+  }, [socket, userData?._id, activeConversationId])
 
   const handleSignOut = async () => {
     try {
@@ -175,6 +216,22 @@ function Nav() {
         <div className='hidden md:flex flex-col items-center cursor-pointer text-gray-600 hover:text-black transition' onClick={() => navigate("/network")}>
           <FaUserGroup className='w-[23px] h-[23px]' />
           <div>My Networks</div>
+        </div>
+
+        {/* Messaging Link with live badge */}
+        <div 
+          className='flex flex-col items-center cursor-pointer text-gray-600 hover:text-black transition relative' 
+          onClick={() => navigate("/chat")}
+        >
+          <div className='relative'>
+            <IoChatbubbleEllipsesSharp className='w-[23px] h-[23px]' />
+            {unreadTotal > 0 && (
+              <span className='absolute -top-[6px] -right-[10px] min-w-[18px] h-[18px] bg-[#0a66c2] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-[4px] shadow-sm'>
+                {unreadTotal > 99 ? '99+' : unreadTotal}
+              </span>
+            )}
+          </div>
+          <div className='hidden md:block'>Messaging</div>
         </div>
 
         <div className='flex flex-col items-center cursor-pointer text-gray-600 hover:text-black transition' onClick={() => navigate("/notification")}>

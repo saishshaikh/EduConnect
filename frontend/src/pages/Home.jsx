@@ -1,247 +1,226 @@
-import React, { useContext, useEffect, useRef, useState } from 'react'
-import Nav from '../components/Nav'
-import dp from "../assets/dp.webp"
-import { FiPlus, FiCamera } from "react-icons/fi";
-import { userDataContext } from '../context/userContext';
-import { HiPencil } from "react-icons/hi2";
-import EditProfile from '../components/EditProfile';
-import { RxCross1 } from "react-icons/rx";
-import { BsImage } from "react-icons/bs";
-import axios from 'axios';
-import { authDataContext } from '../context/AuthContext';
-import Post from '../components/Post';
+import React, { useContext, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import Header from "../components/Header";
+import SidebarNav from "../components/SidebarNav";
+import BottomNav from "../components/BottomNav";
+import StoriesBar from "../components/StoriesBar";
+import PostCard from "../components/PostCard";
+import CreatePostModal from "../components/CreatePostModal";
+import CommentModal from "../components/CommentModal";
+import dp from "../assets/dp.webp";
+import { userDataContext } from "../context/userContext";
+import { authDataContext } from "../context/AuthContext";
+import ConnectionButton from "../components/ConnectionButton";
 
-function Home() {
-  const { userData, setUserData, edit, setEdit, postData, setPostData, getPost, handleGetProfile } = useContext(userDataContext)
-  const { serverUrl } = useContext(authDataContext)
+export default function Home() {
+  const { userData, postData, setPostData, handleGetProfile } = useContext(userDataContext);
+  const { serverUrl } = useContext(authDataContext);
+  const navigate = useNavigate();
 
-  const [frontendImage, setFrontendImage] = useState("")
-  const [backendImage, setBackendImage] = useState("")
-  const [description, setDescription] = useState("")
-  const [posting, setPosting] = useState(false)
-  const [uploadPost, setUploadPost] = useState(false)
-  const [suggestedUser, setSuggestedUser] = useState([])
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [activeCommentPostId, setActiveCommentPostId] = useState(null);
+  const [suggestedUsers, setSuggestedUsers] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
-  const imageRef = useRef()
-
-  // Fetch posts on mount
+  // Fetch suggested connections for right rail on desktop
   useEffect(() => {
-    getPost()
-  }, [])
-
-  // Fetch suggested users on mount
-  useEffect(() => {
-    handleSuggestedUsers()
-  }, [])
-
-  const handleSuggestedUsers = async () => {
-    try {
-      const result = await axios.get(
-        serverUrl + "/api/user/suggestedusers",
-        { withCredentials: true }
-      )
-      setSuggestedUser(result.data)
-    } catch (error) {
-      console.log(error)
+    const fetchSuggestions = async () => {
+      try {
+        setLoadingSuggestions(true);
+        const res = await axios.get(`${serverUrl}/api/user/search?query=a`, {
+          withCredentials: true,
+        });
+        const list = (res.data || []).filter(
+          (u) => u._id !== userData?._id
+        );
+        setSuggestedUsers(list.slice(0, 5));
+      } catch {
+        setSuggestedUsers([]);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    };
+    if (userData?._id) {
+      fetchSuggestions();
     }
-  }
-
-  const handleImage = (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    setBackendImage(file)
-    setFrontendImage(URL.createObjectURL(file))
-  }
-
-  const handleUploadPost = async () => {
-    if (!description && !backendImage) return
-
-    setPosting(true)
-
-    const formdata = new FormData()
-    formdata.append("description", description)
-    if (backendImage) formdata.append("image", backendImage)
-
-    try {
-      const result = await axios.post(
-        serverUrl + "/api/post/create",
-        formdata,
-        { withCredentials: true }
-      )
-
-      // Add new post at the top immediately
-      setPostData([result.data, ...postData])
-
-      // Reset form
-      setDescription("")
-      setFrontendImage("")
-      setBackendImage("")
-      setUploadPost(false)
-
-    } catch (error) {
-      console.log(error)
-    }
-
-    setPosting(false)
-  }
+  }, [userData?._id, serverUrl]);
 
   return (
-    <div className='w-full min-h-[100vh] bg-[#f0efe7] pt-[100px] flex items-center lg:items-start justify-center gap-[20px] px-[20px] flex-col lg:flex-row relative pb-[50px]'>
+    <div className="min-h-screen bg-[#fafafa] dark:bg-[#000000] text-gray-900 dark:text-[#f4f4f5] flex flex-col md:flex-row transition-colors duration-200">
+      
+      {/* 1. Desktop Sidebar Navigation */}
+      <SidebarNav onOpenCreatePost={() => setIsCreateOpen(true)} />
 
-      {edit && <EditProfile />}
-      <Nav />
+      {/* 2. Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        
+        {/* Minimal Top Header */}
+        <Header onOpenCreatePost={() => setIsCreateOpen(true)} />
 
-      {/* LEFT PROFILE CARD */}
-      <div className='w-full lg:w-[25%] min-h-[200px] bg-[white] shadow-lg rounded-lg p-[10px] relative'>
-        <div
-          className='w-[100%] h-[100px] bg-gray-400 rounded overflow-hidden flex items-center justify-center relative cursor-pointer'
-          onClick={() => setEdit(true)}
-        >
-          {userData.coverImage && (
-            <img src={userData.coverImage} alt="" className='w-full' />
-          )}
-          <FiCamera className='absolute right-[20px] top-[20px] w-[25px] h-[25px] text-white' />
-        </div>
+        {/* Feed Layout */}
+        <main className="flex-1 max-w-[980px] w-full mx-auto px-2 sm:px-4 py-4 md:py-6 flex justify-center gap-8 pb-20 md:pb-8">
+          
+          {/* Main Feed Column */}
+          <div className="w-full max-w-[490px] flex flex-col">
+            
+            {/* Stories Section */}
+            <StoriesBar connections={suggestedUsers} />
 
-        <div
-          className='w-[70px] h-[70px] rounded-full overflow-hidden flex items-center justify-center absolute top-[65px] left-[35px] cursor-pointer'
-          onClick={() => setEdit(true)}
-        >
-          <img src={userData.profileImage || dp} alt="" className='h-full' />
-        </div>
-
-        <div className='w-[20px] h-[20px] bg-[#17c1ff] absolute top-[105px] left-[90px] rounded-full flex justify-center items-center cursor-pointer'>
-          <FiPlus className='text-white' />
-        </div>
-
-        <div className='mt-[30px] pl-[20px] font-semibold text-gray-700'>
-          <div className='text-[22px]'>{`${userData.firstName} ${userData.lastName}`}</div>
-          <div className='text-[18px] font-semibold text-gray-600'>{userData.headline || ""}</div>
-          <div className='text-[16px] text-gray-500'>{userData.location}</div>
-        </div>
-
-        <button
-          className='w-[100%] h-[40px] my-[20px] rounded-full border-2 border-[#2dc0ff] text-[#2dc0ff] flex items-center justify-center gap-[10px]'
-          onClick={() => setEdit(true)}
-        >
-          Edit Profile <HiPencil />
-        </button>
-      </div>
-
-      {/* UPLOAD POST MODAL */}
-      {uploadPost && <div className='w-full h-full bg-black fixed top-0 z-[100] left-0 opacity-[0.6]'></div>}
-      {uploadPost && (
-        <div className='w-[90%] max-w-[500px] h-[600px] bg-white shadow-lg top-[100px] rounded-lg fixed z-[200] p-[20px] flex flex-col gap-[20px]'>
-
-          <RxCross1
-            className='absolute top-[20px] right-[20px] w-[25px] h-[25px] cursor-pointer'
-            onClick={() => setUploadPost(false)}
-          />
-
-          <div className='flex items-center gap-[10px]'>
-            <div className='w-[70px] h-[70px] rounded-full overflow-hidden'>
-              <img src={userData.profileImage || dp} alt="" className='h-full' />
-            </div>
-            <div className='text-[22px]'>{`${userData.firstName} ${userData.lastName}`}</div>
+            {/* Posts List */}
+            {postData.length === 0 ? (
+              <div className="w-full bg-white dark:bg-[#121212] rounded-2xl border border-gray-200/80 dark:border-[#262626] p-8 text-center flex flex-col items-center gap-3 mt-2 shadow-xs">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-[#fd1d1d] to-[#833ab4] flex items-center justify-center text-white text-2xl font-bold shadow-md">
+                  ✨
+                </div>
+                <h3 className="text-base font-bold text-gray-800 dark:text-gray-200">
+                  Welcome to your Feed!
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 max-w-[280px]">
+                  Share your first post, project, or learning update with fellow students and educators.
+                </p>
+                <button
+                  onClick={() => setIsCreateOpen(true)}
+                  className="mt-2 px-5 py-2 rounded-full bg-gradient-to-r from-[#e1306c] to-[#833ab4] text-white font-bold text-xs shadow-md hover:opacity-90 active:scale-95 transition"
+                >
+                  Create First Post
+                </button>
+              </div>
+            ) : (
+              postData.map((post) => (
+                <PostCard
+                  key={post._id}
+                  id={post._id}
+                  description={post.description}
+                  author={post.author}
+                  image={post.image}
+                  like={post.like}
+                  comment={post.comment}
+                  createdAt={post.createdAt}
+                  onOpenComments={(postId) => setActiveCommentPostId(postId)}
+                />
+              ))
+            )}
           </div>
 
-          <textarea
-            className={`w-full ${frontendImage ? "h-[200px]" : "h-[550px]"} outline-none border-none p-[10px] resize-none text-[19px]`}
-            placeholder='What do you want to talk about..?'
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
+          {/* Right Rail: Profile & Suggestions (Desktop Only) */}
+          <div className="hidden lg:flex flex-col w-[300px] gap-5 pt-1 select-none">
+            
+            {/* Current User Card */}
+            {userData && (
+              <div className="flex items-center justify-between">
+                <div
+                  onClick={() => handleGetProfile(userData.userName)}
+                  className="flex items-center gap-3 cursor-pointer group"
+                >
+                  <img
+                    src={userData.profileImage || dp}
+                    alt={userData.firstName}
+                    className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-gray-700 group-hover:scale-105 transition"
+                  />
+                  <div className="leading-tight">
+                    <p className="text-xs font-bold text-gray-900 dark:text-white group-hover:text-[#e1306c] transition">
+                      {userData.userName}
+                    </p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-[150px]">
+                      {userData.firstName} {userData.lastName}
+                    </p>
+                  </div>
+                </div>
 
-          <input type="file" ref={imageRef} hidden onChange={handleImage} />
+                <button
+                  onClick={() => navigate("/profile")}
+                  className="text-xs font-bold text-[#0095f6] hover:text-[#0074cc] transition"
+                >
+                  Switch
+                </button>
+              </div>
+            )}
 
-          {frontendImage && (
-            <div className='w-full h-[300px] overflow-hidden flex justify-center items-center rounded-lg'>
-              <img src={frontendImage} alt="" className='h-full rounded-lg' />
-            </div>
-          )}
-
-          <div className='w-full h-[200px] flex flex-col'>
-            <div className='p-[20px] flex items-center border-b-2 border-gray-500'>
-              <BsImage
-                className='w-[24px] h-[24px] text-gray-500 cursor-pointer'
-                onClick={() => imageRef.current.click()}
-              />
-            </div>
-
-            <div className='flex justify-end'>
+            {/* Suggested Connections Header */}
+            <div className="flex items-center justify-between text-xs pt-1">
+              <span className="font-bold text-gray-500 dark:text-gray-400">
+                Suggested for you
+              </span>
               <button
-                className='w-[100px] h-[50px] rounded-full bg-[#24b2ff] mt-[40px] text-white'
-                disabled={posting}
-                onClick={handleUploadPost}
+                onClick={() => navigate("/network")}
+                className="font-bold text-gray-800 dark:text-gray-200 hover:text-gray-500 dark:hover:text-gray-400 transition"
               >
-                {posting ? "Posting..." : "Post"}
+                See All
               </button>
             </div>
+
+            {/* Suggestions List */}
+            <div className="flex flex-col gap-3">
+              {suggestedUsers.map((user) => (
+                <div key={user._id} className="flex items-center justify-between">
+                  <div
+                    onClick={() => handleGetProfile(user.userName)}
+                    className="flex items-center gap-3 cursor-pointer group min-w-0"
+                  >
+                    <img
+                      src={user.profileImage || dp}
+                      alt={user.firstName}
+                      className="w-9 h-9 rounded-full object-cover border border-gray-200 dark:border-gray-700"
+                    />
+                    <div className="leading-tight truncate">
+                      <p className="text-xs font-bold text-gray-900 dark:text-white group-hover:text-[#e1306c] transition truncate">
+                        {user.userName}
+                      </p>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                        {user.headline || `${user.firstName} ${user.lastName}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="ml-2 flex-shrink-0 scale-90 origin-right">
+                    <ConnectionButton userId={user._id} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer Links */}
+            <div className="text-[11px] text-gray-400 dark:text-gray-600 flex flex-col gap-2 pt-4 border-t border-gray-100 dark:border-[#262626]">
+              <div className="flex flex-wrap gap-x-2 gap-y-1">
+                <span>About</span>
+                <span>•</span>
+                <span>Help</span>
+                <span>•</span>
+                <span>Privacy</span>
+                <span>•</span>
+                <span>Terms</span>
+                <span>•</span>
+                <span>Locations</span>
+              </div>
+              <p className="text-[10px] uppercase font-semibold tracking-wider">
+                © 2026 EduConnect from Meta-learning
+              </p>
+            </div>
+
           </div>
-        </div>
+
+        </main>
+
+        {/* 3. Mobile Bottom Navigation */}
+        <BottomNav onOpenCreatePost={() => setIsCreateOpen(true)} />
+
+      </div>
+
+      {/* Create Post Modal */}
+      <CreatePostModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+      />
+
+      {/* Comments Sliding Sheet */}
+      {activeCommentPostId && (
+        <CommentModal
+          postId={activeCommentPostId}
+          onClose={() => setActiveCommentPostId(null)}
+        />
       )}
 
-      {/* POSTS */}
-      <div className='w-full lg:w-[50%] flex flex-col gap-[20px]'>
-        <div className='w-full h-[120px] bg-white shadow-lg rounded-lg flex items-center p-[20px] gap-[10px]'>
-          <div className='w-[70px] h-[70px] rounded-full overflow-hidden'>
-            <img src={userData.profileImage || dp} alt="" className='h-full' />
-          </div>
-          <button
-            className='w-[80%] h-[60px] border-2 rounded-full border-gray-500 px-[20px] hover:bg-gray-200'
-            onClick={() => setUploadPost(true)}
-          >
-            Start a post
-          </button>
-        </div>
-
-        {postData.map((post, index) => (
-          <Post
-            key={post._id || index}
-            id={post._id}
-            description={post.description}
-            author={post.author}
-            image={post.image}
-            like={post.like}
-            comment={post.comment}
-            createdAt={post.createdAt}
-          />
-        ))}
-      </div>
-
-      {/* SUGGESTED USERS */}
-      <div className='w-full lg:w-[25%] min-h-[200px] bg-[white] shadow-lg hidden lg:flex flex-col p-[20px]'>
-        <h1 className='text-[20px] text-gray-600 font-semibold'>Suggested Users</h1>
-
-        {suggestedUser.length > 0 ? (
-          <div className='flex flex-col gap-[10px]'>
-            {suggestedUser.map((su, index) => (
-              <div
-                key={su._id || index}
-                className='flex items-center gap-[10px] mt-[10px] cursor-pointer hover:bg-gray-200 rounded-lg p-[5px]'
-                onClick={() => handleGetProfile(su.userName)}
-              >
-                <div className='w-[40px] h-[40px] rounded-full overflow-hidden'>
-                  <img src={su.profileImage || dp} alt="" className='w-full h-full' />
-                </div>
-                <div>
-                  <div className='text-[19px] font-semibold text-gray-700'>
-                    {`${su.firstName} ${su.lastName}`}
-                  </div>
-                  <div className='text-[12px] font-semibold text-gray-700'>
-                    {su.headline}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div>No Suggested Users</div>
-        )}
-      </div>
-
     </div>
-  )
+  );
 }
-
-export default Home
