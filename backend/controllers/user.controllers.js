@@ -122,18 +122,38 @@ export const search = async (req, res) => {
 export const getSuggestedUser = async (req, res) => {
     try {
         const currentUser = await User.findById(req.userId).select("connection")
+        if (!currentUser) {
+            return res.status(404).json({ message: "User not found" })
+        }
 
-        const suggestedUsers = await User.find({
+        const rawConnections = currentUser.connection || []
+        const connectionIds = rawConnections.map((c) => (c?._id ? c._id : c))
+
+        let suggestedUsers = await User.find({
             _id: {
-                $ne: currentUser._id,  // ✅ Fixed
-                $nin: currentUser.connection
+                $ne: currentUser._id,
+                $nin: connectionIds
             }
-        }).select("-password")
+        }).select("-password").limit(10)
+
+        // If all users are connected or no unconnected users, show other registered users
+        if (suggestedUsers.length === 0) {
+            suggestedUsers = await User.find({
+                _id: { $ne: currentUser._id }
+            }).select("-password").limit(10)
+        }
 
         return res.status(200).json(suggestedUsers)
 
     } catch (error) {
-        console.log(error)
-        return res.status(500).json({ message: `Suggested user error: ${error}` })
+        console.log("Suggested user error:", error)
+        try {
+            const fallbackUsers = await User.find({
+                _id: { $ne: req.userId }
+            }).select("-password").limit(10)
+            return res.status(200).json(fallbackUsers)
+        } catch (err) {
+            return res.status(500).json({ message: `Suggested user error: ${err}` })
+        }
     }
 }

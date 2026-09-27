@@ -31,21 +31,16 @@ export default function Header({ onOpenCreatePost }) {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const searchContainerRef = useRef(null);
 
-  const handleSearch = async () => {
-    if (!searchInput.trim()) {
-      setSearchData([]);
-      setShowSearchDropdown(false);
-      setIsSearching(false);
-      return;
-    }
-
+  const handleSearch = async (queryVal = searchInput) => {
     try {
       setIsSearching(true);
+      const queryParam = queryVal.trim() ? `?query=${encodeURIComponent(queryVal.trim())}` : "";
       const result = await axios.get(
-        `${serverUrl}/api/user/search?query=${encodeURIComponent(searchInput.trim())}`,
+        `${serverUrl}/api/user/search${queryParam}`,
         { withCredentials: true }
       );
-      setSearchData(result.data || []);
+      const list = (result.data || []).filter((u) => u._id !== userData?._id);
+      setSearchData(list);
       setShowSearchDropdown(true);
     } catch {
       setSearchData([]);
@@ -56,8 +51,8 @@ export default function Header({ onOpenCreatePost }) {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      handleSearch();
-    }, 250);
+      handleSearch(searchInput);
+    }, 200);
     return () => clearTimeout(timer);
   }, [searchInput]);
 
@@ -96,7 +91,10 @@ export default function Header({ onOpenCreatePost }) {
               placeholder="Search people in database..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              onFocus={() => searchInput.trim() && setShowSearchDropdown(true)}
+              onFocus={() => {
+                setShowSearchDropdown(true);
+                handleSearch(searchInput);
+              }}
               className="w-full bg-transparent outline-none text-[13px] text-gray-800 dark:text-gray-200 placeholder-gray-400"
             />
             {isSearching && (
@@ -105,8 +103,11 @@ export default function Header({ onOpenCreatePost }) {
           </div>
 
           {/* Search Dropdown */}
-          {showSearchDropdown && searchInput.trim() && (
+          {showSearchDropdown && (
             <div className="absolute top-[44px] left-0 w-full bg-white dark:bg-[#121212] border border-gray-200 dark:border-[#262626] rounded-xl shadow-2xl p-2 max-h-[360px] overflow-y-auto custom-scrollbar z-50">
+              <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-gray-800 mb-1">
+                {searchInput.trim() ? "Search Results" : "Suggested People in Database"}
+              </div>
               {searchData.length > 0 ? (
                 searchData.map((user) => (
                   <div
@@ -140,7 +141,11 @@ export default function Header({ onOpenCreatePost }) {
                 ))
               ) : !isSearching ? (
                 <div className="p-4 text-center text-xs text-gray-500 dark:text-gray-400">
-                  No users found in database for "<span className="font-semibold text-gray-700 dark:text-gray-300">{searchInput}</span>"
+                  {searchInput.trim() ? (
+                    <>No users found in database for "<span className="font-semibold text-gray-700 dark:text-gray-300">{searchInput}</span>"</>
+                  ) : (
+                    "No other users registered in database."
+                  )}
                 </div>
               ) : null}
             </div>

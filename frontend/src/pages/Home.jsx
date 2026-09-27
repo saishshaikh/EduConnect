@@ -51,9 +51,24 @@ export default function Home() {
         const res = await axios.get(`${serverUrl}/api/user/suggestedusers`, {
           withCredentials: true,
         });
-        setSuggestedUsers(res.data || []);
+        let list = res.data || [];
+        if (list.length === 0) {
+          const allRes = await axios.get(`${serverUrl}/api/user/search`, {
+            withCredentials: true,
+          });
+          list = (allRes.data || []).filter((u) => u._id !== userData?._id);
+        }
+        setSuggestedUsers(list.slice(0, 5));
       } catch {
-        setSuggestedUsers([]);
+        try {
+          const allRes = await axios.get(`${serverUrl}/api/user/search`, {
+            withCredentials: true,
+          });
+          const list = (allRes.data || []).filter((u) => u._id !== userData?._id);
+          setSuggestedUsers(list.slice(0, 5));
+        } catch {
+          setSuggestedUsers([]);
+        }
       } finally {
         setLoadingSuggestions(false);
       }
