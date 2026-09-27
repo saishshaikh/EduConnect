@@ -6,17 +6,17 @@ import { BiLike } from "react-icons/bi";
 import axios from 'axios';
 import { authDataContext } from '../context/AuthContext';
 import { userDataContext } from '../context/UserContext';
+import { SocketContext } from '../context/SocketContext';
 import { BiSolidLike } from "react-icons/bi";
 import { LuSendHorizontal } from "react-icons/lu";
-import {io} from "socket.io-client"
 import ConnectionButton from './ConnectionButton';
 
-let socket=io("http://localhost:8000")
 function Post({ id, author, like, comment, description, image,createdAt }) {
     
-    let [more,setMore]=useState(false)
+  let [more,setMore]=useState(false)
   let {serverUrl}=useContext(authDataContext)
   let {userData,setUserData,getPost,handleGetProfile}=useContext(userDataContext)
+  let {socket}=useContext(SocketContext)
   let [likes,setLikes]=useState(like)
   let [commentContent,setCommentContent]=useState("")
   let [comments,setComments]=useState(comment)
@@ -44,6 +44,7 @@ function Post({ id, author, like, comment, description, image,createdAt }) {
 
 
       useEffect(()=>{
+        if (!socket) return;
         socket.on("likeUpdated",({postId,likes})=>{
           if(postId==id){
             setLikes(likes)
@@ -56,10 +57,10 @@ function Post({ id, author, like, comment, description, image,createdAt }) {
         })
 
         return ()=>{
-socket.off("likeUpdated")
-socket.off("commentAdded")
+          socket.off("likeUpdated")
+          socket.off("commentAdded")
         }
-      },[id])
+      },[id, socket])
 
    useEffect(()=>{
     getPost()
