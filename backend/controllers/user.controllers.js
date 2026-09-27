@@ -3,7 +3,9 @@ import User from "../models/user.model.js"
 
 export const getCurrentUser = async (req, res) => {
     try {
-        const user = await User.findById(req.userId).select("-password")
+        const user = await User.findById(req.userId)
+            .select("-password")
+            .populate("connection", "firstName lastName userName profileImage headline")
         if (!user) {
             return res.status(404).json({ message: "User not found" })
         }
@@ -35,7 +37,7 @@ export const updateProfile = async (req, res) => {
             req.userId,
             { firstName, lastName, userName, headline, location, gender, skills, education, experience, profileImage, coverImage },
             { new: true }
-        ).select("-password")
+        ).select("-password").populate("connection", "firstName lastName userName profileImage headline")
 
         return res.status(200).json(user)
 
@@ -58,7 +60,7 @@ export const getprofile = async (req, res) => {
                 { userName: { $regex: new RegExp(`^${userName.trim()}$`, "i") } },
                 ...(isObjectId ? [{ _id: userName.trim() }] : [])
             ]
-        }).select("-password")
+        }).select("-password").populate("connection", "firstName lastName userName profileImage headline")
 
         if (!user) {
             return res.status(404).json({ message: "Username does not exist" })

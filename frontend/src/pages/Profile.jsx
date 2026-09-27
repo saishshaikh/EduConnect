@@ -12,6 +12,8 @@ import {
   IoChatbubbleEllipsesOutline,
   IoShareSocialOutline,
   IoCheckmark,
+  IoClose,
+  IoPeopleOutline,
 } from "react-icons/io5";
 import Header from "../components/Header";
 import SidebarNav from "../components/SidebarNav";
@@ -24,12 +26,13 @@ import dp from "../assets/dp.webp";
 import { userDataContext } from "../context/UserContext";
 
 export default function Profile() {
-  const { userData, profileData, postData } = useContext(userDataContext);
+  const { userData, profileData, postData, handleGetProfile } = useContext(userDataContext);
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState("posts"); // "posts" | "about" | "saved"
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);
   const [activeCommentPostId, setActiveCommentPostId] = useState(null);
   const [copied, setCopied] = useState(false);
 
@@ -129,11 +132,17 @@ export default function Profile() {
                   <span className="text-gray-500 dark:text-gray-400">posts</span>
                 </div>
 
-                <div onClick={() => navigate("/network")} className="cursor-pointer">
-                  <span className="font-bold text-gray-900 dark:text-white mr-1">
+                <div
+                  onClick={() => setIsConnectionsOpen(true)}
+                  className="cursor-pointer hover:text-[#e1306c] transition group"
+                  title="View Connections"
+                >
+                  <span className="font-bold text-gray-900 dark:text-white mr-1 group-hover:text-[#e1306c]">
                     {targetUser?.connection?.length || 0}
                   </span>
-                  <span className="text-gray-500 dark:text-gray-400">connections</span>
+                  <span className="text-gray-500 dark:text-gray-400 group-hover:text-[#e1306c]">
+                    connections
+                  </span>
                 </div>
 
                 <div>
@@ -336,6 +345,102 @@ export default function Profile() {
           postId={activeCommentPostId}
           onClose={() => setActiveCommentPostId(null)}
         />
+      )}
+
+      {/* Connections List Modal */}
+      {isConnectionsOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-[#262626] rounded-2xl w-full max-w-[440px] max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-[#262626]">
+              <div className="flex items-center gap-2">
+                <IoPeopleOutline className="w-5 h-5 text-[#e1306c]" />
+                <h3 className="font-bold text-sm text-gray-900 dark:text-white">
+                  Connections ({targetUser?.connection?.length || 0})
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsConnectionsOpen(false)}
+                className="p-1 rounded-full text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1c1c1e] transition"
+              >
+                <IoClose className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body: List of Connected Users */}
+            <div className="p-3 overflow-y-auto custom-scrollbar flex-1 flex flex-col gap-2">
+              {(!targetUser?.connection || targetUser.connection.length === 0) ? (
+                <div className="py-12 text-center text-gray-400 text-xs flex flex-col items-center gap-2">
+                  <IoPeopleOutline className="w-8 h-8 text-gray-400" />
+                  <p>No connections to show.</p>
+                </div>
+              ) : (
+                targetUser.connection.map((friend) => {
+                  // friend could be populated object or id
+                  const isObject = typeof friend === "object" && friend !== null;
+                  const friendId = isObject ? friend._id : friend;
+                  const friendName = isObject ? `${friend.firstName} ${friend.lastName}` : "Connected User";
+                  const friendUsername = isObject ? friend.userName : "";
+                  const friendImage = isObject ? friend.profileImage : "";
+                  const friendHeadline = isObject ? friend.headline : "";
+
+                  return (
+                    <div
+                      key={friendId}
+                      className="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-[#1c1c1e] transition gap-3"
+                    >
+                      <div
+                        onClick={() => {
+                          if (friendUsername) {
+                            handleGetProfile(friendUsername);
+                            setIsConnectionsOpen(false);
+                          }
+                        }}
+                        className="flex items-center gap-3 cursor-pointer min-w-0 flex-1"
+                      >
+                        <img
+                          src={friendImage || dp}
+                          alt={friendName}
+                          className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-700 flex-shrink-0"
+                        />
+                        <div className="min-w-0 flex-1 leading-tight">
+                          <p className="text-xs font-bold text-gray-900 dark:text-white truncate hover:text-[#e1306c] transition">
+                            {friendName}
+                          </p>
+                          {friendUsername && (
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                              @{friendUsername}
+                            </p>
+                          )}
+                          {friendHeadline && (
+                            <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
+                              {friendHeadline}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          onClick={() => {
+                            setIsConnectionsOpen(false);
+                            navigate(`/chat/${friendId}`);
+                          }}
+                          className="px-3 py-1 rounded-lg bg-[#0095f6] hover:bg-[#0074cc] text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition"
+                        >
+                          <IoChatbubbleEllipsesOutline className="w-3.5 h-3.5" />
+                          <span>Chat</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+          </div>
+        </div>
       )}
 
     </div>

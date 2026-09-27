@@ -26,14 +26,16 @@ export default function Network() {
   const [activeTab, setActiveTab] = useState("invitations"); // "invitations" | "connections"
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  // Fetch pending requests
+  // Fetch pending requests & accepted connections
   const handleGetRequests = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${serverUrl}/api/connection/requests`, {
-        withCredentials: true,
-      });
-      setRequests(res.data || []);
+      const [reqRes, connRes] = await Promise.all([
+        axios.get(`${serverUrl}/api/connection/requests`, { withCredentials: true }),
+        axios.get(`${serverUrl}/api/connection`, { withCredentials: true }),
+      ]);
+      setRequests(reqRes.data || []);
+      setConnections(connRes.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -49,6 +51,9 @@ export default function Network() {
         { withCredentials: true }
       );
       setRequests((prev) => prev.filter((con) => con._id !== requestId));
+      // Refresh connections list
+      const connRes = await axios.get(`${serverUrl}/api/connection`, { withCredentials: true });
+      setConnections(connRes.data || []);
     } catch (err) {
       console.error(err);
     }
@@ -67,6 +72,17 @@ export default function Network() {
     }
   };
 
+  const handleRemoveConnection = async (targetUserId) => {
+    try {
+      await axios.delete(`${serverUrl}/api/connection/remove/${targetUserId}`, {
+        withCredentials: true,
+      });
+      setConnections((prev) => prev.filter((c) => c._id !== targetUserId));
+    } catch (err) {
+      console.error("Error removing connection:", err);
+    }
+  };
+
   useEffect(() => {
     handleGetRequests();
   }, []);
@@ -82,7 +98,7 @@ export default function Network() {
         <main className="flex-1 max-w-[860px] w-full mx-auto px-4 py-6 pb-20 md:pb-8 flex flex-col gap-6">
           
           {/* Header & Tabs */}
-          <div className="flex items-center justify-between pb-2 border-b border-gray-200/80 dark:border-[#262626]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-200/80 dark:border-[#262626]">
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                 Network
@@ -92,10 +108,21 @@ export default function Network() {
               </p>
             </div>
 
-            <div className="flex bg-gray-100 dark:bg-[#1c1c1e] p-1 rounded-xl text-xs font-bold">
+            <div className="flex bg-gray-100 dark:bg-[#1c1c1e] p-1 rounded-xl text-xs font-bold gap-1 self-start sm:self-auto">
+              <button
+                onClick={() => setActiveTab("connections")}
+                className={`px-3.5 py-1.5 rounded-lg transition ${
+                  activeTab === "connections"
+                    ? "bg-white dark:bg-[#121212] text-gray-900 dark:text-white shadow-xs"
+                    : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                }`}
+              >
+                My Connections ({connections.length})
+              </button>
+
               <button
                 onClick={() => setActiveTab("invitations")}
-                className={`px-3 py-1.5 rounded-lg transition ${
+                className={`px-3.5 py-1.5 rounded-lg transition ${
                   activeTab === "invitations"
                     ? "bg-white dark:bg-[#121212] text-gray-900 dark:text-white shadow-xs"
                     : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
@@ -106,7 +133,86 @@ export default function Network() {
             </div>
           </div>
 
-          {/* Invitations List */}
+          {/* 1. MY CONNECTIONS TAB */}
+          {activeTab === "connections" && (
+            <div>
+              {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="p-4 bg-white dark:bg-[#121212] rounded-2xl border border-gray-200/80 dark:border-[#262626] animate-pulse flex items-center gap-3"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-800" />
+                      <div className="flex-1 flex flex-col gap-2">
+                        <div className="w-28 h-3 bg-gray-200 dark:bg-gray-800 rounded" />
+                        <div className="w-40 h-2 bg-gray-100 dark:bg-gray-900 rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : connections.length === 0 ? (
+                <div className="py-20 text-center text-gray-400 flex flex-col items-center gap-2">
+                  <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-[#121212] flex items-center justify-center text-2xl">
+                    <IoPeopleOutline className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                    No Connections Yet
+                  </h3>
+                  <p className="text-xs text-gray-500 max-w-[280px]">
+                    You haven't connected with anyone yet. Search peers or explore suggestions to connect!
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {connections.map((user) => (
+                    <div
+                      key={user._id}
+                      className="p-4 bg-white dark:bg-[#121212] rounded-2xl border border-gray-200/80 dark:border-[#262626] shadow-xs flex items-center justify-between gap-3 hover:border-gray-300 dark:hover:border-gray-700 transition"
+                    >
+                      <div
+                        onClick={() => user.userName && handleGetProfile(user.userName)}
+                        className="flex items-center gap-3 cursor-pointer min-w-0 flex-1"
+                      >
+                        <img
+                          src={user.profileImage || dp}
+                          alt={user.firstName}
+                          className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-gray-700 flex-shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-gray-900 dark:text-white truncate hover:text-[#e1306c] transition">
+                            {user.firstName} {user.lastName}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            @{user.userName}
+                          </p>
+                          {user.headline && (
+                            <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
+                              {user.headline}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => navigate(`/chat/${user._id}`)}
+                          className="px-3 py-1.5 rounded-lg bg-[#0095f6] hover:bg-[#0074cc] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition"
+                          title="Send Message"
+                        >
+                          <IoChatbubbleEllipsesOutline className="w-3.5 h-3.5" />
+                          <span>Chat</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 2. INVITATIONS TAB */}
           {activeTab === "invitations" && (
             <div>
               {loading ? (

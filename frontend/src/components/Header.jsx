@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   IoHeartOutline,
@@ -29,6 +29,7 @@ export default function Header({ onOpenCreatePost }) {
   const [searchData, setSearchData] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const searchContainerRef = useRef(null);
 
   const handleSearch = async () => {
     if (!searchInput.trim()) {
@@ -60,6 +61,17 @@ export default function Header({ onOpenCreatePost }) {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setShowSearchDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <header className="sticky top-0 z-40 w-full h-[60px] bg-white/85 dark:bg-[#000000]/85 backdrop-blur-md border-b border-gray-200/80 dark:border-[#262626] transition-colors duration-200">
       <div className="max-w-[1050px] h-full mx-auto px-4 flex items-center justify-between gap-4">
@@ -76,7 +88,7 @@ export default function Header({ onOpenCreatePost }) {
         </div>
 
         {/* Search Bar (Tablet & Desktop) */}
-        <div className="hidden sm:flex relative flex-1 max-w-[280px] lg:max-w-[320px]">
+        <div ref={searchContainerRef} className="hidden sm:flex relative flex-1 max-w-[280px] lg:max-w-[320px]">
           <div className="w-full h-[36px] bg-gray-100 dark:bg-[#1c1c1e] rounded-xl flex items-center px-3 gap-2 text-gray-500 dark:text-gray-400 focus-within:ring-2 focus-within:ring-[#e1306c]/40 transition">
             <IoSearchOutline className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <input
