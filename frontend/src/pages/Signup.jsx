@@ -60,6 +60,11 @@ export default function Signup() {
         }
       );
 
+      if (result.data?.token) {
+        localStorage.setItem("token", result.data.token);
+        axios.defaults.headers.common["Authorization"] = `Bearer ${result.data.token}`;
+      }
+
       setUserData(result.data);
       navigate("/");
     } catch (error) {

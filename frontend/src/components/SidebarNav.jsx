@@ -38,10 +38,16 @@ export default function SidebarNav({ onOpenCreatePost }) {
   const handleSignOut = async () => {
     try {
       await axios.get(`${serverUrl}/api/auth/logout`, { withCredentials: true });
+      localStorage.removeItem("token");
+      delete axios.defaults.headers.common["Authorization"];
       setUserData(null);
       navigate("/login");
     } catch (err) {
       console.error(err);
+      localStorage.removeItem("token");
+      delete axios.defaults.headers.common["Authorization"];
+      setUserData(null);
+      navigate("/login");
     }
   };
 

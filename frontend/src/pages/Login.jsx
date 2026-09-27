@@ -28,6 +28,10 @@ export default function Login() {
         { email: email.trim(), password: password.trim() },
         { withCredentials: true }
       );
+      if (result.data?.token) {
+        localStorage.setItem("token", result.data.token);
+        axios.defaults.headers.common["Authorization"] = `Bearer ${result.data.token}`;
+      }
       setUserData(result.data);
       navigate("/");
     } catch (error) {

@@ -13,10 +13,21 @@ function UserContext({ children }) {
   const { serverUrl } = useContext(authDataContext);
   const navigate = useNavigate();
 
+  // Set up Authorization header from localStorage
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    }
+  }, []);
+
   // Get current logged-in user
   const getCurrentUser = async () => {
     try {
+      const token = localStorage.getItem("token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const result = await axios.get(`${serverUrl}/api/user/currentuser`, {
+        headers,
         withCredentials: true,
       });
       setUserData(result.data);

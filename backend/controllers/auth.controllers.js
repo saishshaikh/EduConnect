@@ -39,12 +39,12 @@ export const signUp = async (req, res) => {
         res.cookie("token", token, {
             httpOnly: true,
             maxAge: 7 * 24 * 60 * 60 * 1000,
-            sameSite: "strict",
-            secure: process.env.NODE_ENVIRONMENT === "production"
+            sameSite: "none",
+            secure: true
         })
 
         const userWithoutPassword = await User.findById(user._id).select("-password")
-        return res.status(201).json(userWithoutPassword)
+        return res.status(201).json({ ...userWithoutPassword.toObject(), token })
 
     } catch (error) {
         console.log("Signup error:", error)
@@ -75,12 +75,12 @@ export const login = async (req, res) => {
         res.cookie("token", token, {
             httpOnly: true,
             maxAge: 7 * 24 * 60 * 60 * 1000,
-            sameSite: "strict",
-            secure: process.env.NODE_ENVIRONMENT === "production"
+            sameSite: "none",
+            secure: true
         })
 
         const userWithoutPassword = await User.findById(user._id).select("-password")
-        return res.status(200).json(userWithoutPassword)
+        return res.status(200).json({ ...userWithoutPassword.toObject(), token })
 
     } catch (error) {
         console.log("Login error:", error)
