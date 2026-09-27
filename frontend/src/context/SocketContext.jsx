@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import io from "socket.io-client";
 import moment from "moment";
-import { userDataContext } from "./userContext";
+import { userDataContext } from "./UserContext";
 import { authDataContext } from "./AuthContext";
 
 export const SocketContext = createContext();
