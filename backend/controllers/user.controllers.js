@@ -75,25 +75,47 @@ export const getprofile = async (req, res) => {
 export const search = async (req, res) => {
     try {
         const { query } = req.query
+        let users = []
         if (!query || !query.trim()) {
-            return res.status(200).json([])
+            users = await User.find({ _id: { $ne: req.userId } })
+                .select("-password")
+                .limit(40)
+            return res.status(200).json(users)
         }
 
         const cleanQuery = query.trim()
-        const users = await User.find({
+        const safeRegex = cleanQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+        users = await User.find({
+            _id: { $ne: req.userId },
             $or: [
-                { firstName: { $regex: cleanQuery, $options: "i" } },
-                { lastName: { $regex: cleanQuery, $options: "i" } },
-                { userName: { $regex: cleanQuery, $options: "i" } },
-                { skills: { $regex: cleanQuery, $options: "i" } }
+                { firstName: { $regex: safeRegex, $options: "i" } },
+                { lastName: { $regex: safeRegex, $options: "i" } },
+                { userName: { $regex: safeRegex, $options: "i" } },
+                { headline: { $regex: safeRegex, $options: "i" } },
+                { skills: { $in: [new RegExp(safeRegex, "i")] } }
             ]
-        }).select("-password").limit(20)
+        }).select("-password").limit(40)
 
         return res.status(200).json(users)
 
     } catch (error) {
-        console.log(error)
-        return res.status(500).json({ message: `Search error: ${error}` })
+        console.log("Search error:", error)
+        try {
+            const cleanQuery = req.query.query ? req.query.query.trim() : ""
+            const safeRegex = cleanQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            const fallbackUsers = await User.find({
+                _id: { $ne: req.userId },
+                $or: [
+                    { firstName: { $regex: safeRegex, $options: "i" } },
+                    { lastName: { $regex: safeRegex, $options: "i" } },
+                    { userName: { $regex: safeRegex, $options: "i" } }
+                ]
+            }).select("-password").limit(40)
+            return res.status(200).json(fallbackUsers)
+        } catch (err) {
+            return res.status(500).json({ message: `Search error: ${err}` })
+        }
     }
 }
 
