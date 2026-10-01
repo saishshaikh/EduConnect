@@ -22,6 +22,8 @@ export const createPost = async (req, res) => {
             })
         }
 
+        await newPost.populate("author", "firstName lastName profileImage headline userName");
+
         return res.status(201).json(newPost)
 
     } catch (error) {

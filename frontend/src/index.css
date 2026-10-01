@@ -3,9 +3,48 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --edu-bg: #fafafa;
+    --edu-surface: #ffffff;
+    --edu-surface-secondary: #f3f4f6;
+    --edu-text: #111827;
+    --edu-text-muted: #6b7280;
+    --edu-border: #e5e7eb;
+    --edu-primary: #e1306c;
+    --edu-accent: #833ab4;
+  }
+
+  .dark {
+    --edu-bg: #000000;
+    --edu-surface: #121212;
+    --edu-surface-secondary: #1c1c1e;
+    --edu-text: #f4f4f5;
+    --edu-text-muted: #a1a1aa;
+    --edu-border: #262626;
+    --edu-primary: #e1306c;
+    --edu-accent: #833ab4;
+  }
+
+  .theme-education {
+    --edu-bg: #f8fafc;
+    --edu-surface: #ffffff;
+    --edu-surface-secondary: #f1f5f9;
+    --edu-text: #0f172a;
+    --edu-text-muted: #475569;
+    --edu-border: #e2e8f0;
+    --edu-primary: #0066ff;
+    --edu-accent: #f59e0b;
+  }
+
   body {
     @apply bg-[#fafafa] dark:bg-[#000000] text-gray-900 dark:text-[#f4f4f5] transition-colors duration-200 antialiased;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  .theme-education body,
+  body.theme-education {
+    background-color: #f8fafc;
+    color: #0f172a;
   }
 }
 
@@ -16,11 +55,11 @@
 
 /* Hide scrollbar for IE, Edge and Firefox */
 .no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-/* Custom scrollbar for chat and desktop lists */
+/* Custom scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -35,16 +74,61 @@
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(82, 82, 91, 0.5);
 }
+.theme-education .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+}
 
-/* Gradient Story Ring */
+/* Gradient Story Rings */
 .story-gradient {
   background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+}
+.theme-education .story-gradient {
+  background: linear-gradient(45deg, #0066ff 0%, #00d2ff 40%, #f59e0b 100%);
 }
 .story-gradient-viewed {
   background: #d1d5db;
 }
 .dark .story-gradient-viewed {
   background: #3f3f46;
+}
+.theme-education .story-gradient-viewed {
+  background: #cbd5e1;
+}
+
+/* Educational Theme Special Card & Hero Effects */
+.education-hero-pattern {
+  background-color: #ffffff;
+  background-image: radial-gradient(#0066ff 0.75px, transparent 0.75px), radial-gradient(#0066ff 0.75px, #ffffff 0.75px);
+  background-size: 30px 30px;
+  background-position: 0 0, 15px 15px;
+  opacity: 0.04;
+}
+
+.education-card-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.education-card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px -4px rgba(0, 102, 255, 0.12), 0 4px 10px -2px rgba(0, 0, 0, 0.04);
+}
+
+/* Floating animation for hero badges */
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes floatReverse {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(8px); }
+}
+
+.animate-float-slow {
+  animation: floatSlow 4s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: floatReverse 4.5s ease-in-out infinite;
 }
 
 /* Double click heart animation container */

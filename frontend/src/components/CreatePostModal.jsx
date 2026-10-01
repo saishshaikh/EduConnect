@@ -64,9 +64,25 @@ export default function CreatePostModal({ isOpen, onClose }) {
         { withCredentials: true }
       );
 
-      // Prepend new post to global feed
+      // Prepend new post to global feed with populated author
       if (res.data) {
-        setPostData([res.data, ...postData]);
+        const fullAuthor = (res.data.author && typeof res.data.author === "object" && res.data.author.firstName)
+          ? res.data.author
+          : {
+              _id: userData?._id,
+              firstName: userData?.firstName,
+              lastName: userData?.lastName,
+              userName: userData?.userName,
+              profileImage: userData?.profileImage,
+              headline: userData?.headline,
+            };
+
+        const newPostWithAuthor = {
+          ...res.data,
+          author: fullAuthor,
+        };
+
+        setPostData([newPostWithAuthor, ...postData]);
       }
 
       // Reset state and close modal

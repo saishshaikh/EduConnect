@@ -1,22 +1,107 @@
-# Environment files
+# ================================
+# Environment / Secrets
+# ================================
 .env
 .env.*
 !.env.example
+!.env.local.example
 
-# Node modules
+# Explicit backend/frontend env files
+backend/.env
+frontend/.env
+client/.env
+server/.env
+
+# ================================
+# Dependencies
+# ================================
 node_modules/
+**/node_modules/
 
-# Build folders
+# ================================
+# Build / Production
+# ================================
 dist/
 build/
+out/
+.next/
+.nuxt/
+.vite/
 
+# ================================
 # Logs
+# ================================
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# OS files
+# ================================
+# Test / Coverage
+# ================================
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# ================================
+# Runtime / Temporary
+# ================================
+.tmp/
+temp/
+tmp/
+.cache/
+.parcel-cache/
+.eslintcache
+
+# ================================
+# Uploads / User Generated Files
+# ================================
+uploads/
+backend/uploads/
+server/uploads/
+
+# ================================
+# OS Files
+# ================================
 .DS_Store
+.DS_Store?
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# IDE
+# ================================
+# IDE / Editors
+# ================================
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# ================================
+# Local Database
+# ================================
+*.sqlite
+*.sqlite3
+*.db
+
+# ================================
+# Certificates / Private Keys
+# ================================
+*.pem
+*.key
+*.crt
+*.p12
+
+# ================================
+# Vercel / Netlify
+# ================================
+.vercel/
+.netlify/
+
+# ================================
+# Misc
+# ================================
+*.bak
+*.backup

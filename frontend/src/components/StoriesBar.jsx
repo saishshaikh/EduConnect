@@ -1,168 +1,148 @@
-import React, { useContext, useState, useEffect } from "react";
-import { IoAdd, IoClose } from "react-icons/io5";
+import React, { useContext, useState } from "react";
+import { IoAdd } from "react-icons/io5";
 import dp from "../assets/dp.webp";
 import { userDataContext } from "../context/UserContext";
+import AddStoryModal from "./AddStoryModal";
+import StoryViewerModal from "./StoryViewerModal";
 
-export default function StoriesBar({ connections = [] }) {
-  const { userData, handleGetProfile } = useContext(userDataContext);
-  const [activeStory, setActiveStory] = useState(null);
-  const [viewedStories, setViewedStories] = useState({});
-  const [progress, setProgress] = useState(0);
+export default function StoriesBar() {
+  const { userData, storiesFeed, fetchStoriesFeed } = useContext(userDataContext);
 
-  // Auto progress active story
-  useEffect(() => {
-    if (!activeStory) return;
-    setProgress(0);
+  const [isAddStoryOpen, setIsAddStoryOpen] = useState(false);
+  const [activeViewerUserIndex, setActiveViewerUserIndex] = useState(null);
 
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setActiveStory(null);
-          return 0;
-        }
-        return prev + 2;
-      });
-    }, 60);
+  // Find if current user has active stories in the feed
+  const myStoryGroup = storiesFeed.find(
+    (group) => group.user?._id?.toString() === userData?._id?.toString()
+  );
+  const hasMyStories = Boolean(myStoryGroup && myStoryGroup.stories?.length > 0);
 
-    return () => clearInterval(interval);
-  }, [activeStory]);
+  // Other users in the feed (excluding current user to avoid duplication in list)
+  const otherStoriesGroups = storiesFeed.filter(
+    (group) => group.user?._id?.toString() !== userData?._id?.toString()
+  );
 
-  const handleOpenStory = (storyUser) => {
-    setActiveStory(storyUser);
-    setViewedStories((prev) => ({ ...prev, [storyUser._id]: true }));
+  const handleOpenMyStory = (e) => {
+    e.stopPropagation();
+    if (hasMyStories) {
+      const idx = storiesFeed.findIndex(
+        (g) => g.user?._id?.toString() === userData?._id?.toString()
+      );
+      if (idx !== -1) setActiveViewerUserIndex(idx);
+    } else {
+      setIsAddStoryOpen(true);
+    }
   };
 
-  // Only show real connected users
-  const storyList = Array.isArray(connections) ? connections : [];
+  const handleOpenOtherStory = (userGroup) => {
+    const idx = storiesFeed.findIndex(
+      (g) => g.user?._id?.toString() === userGroup.user?._id?.toString()
+    );
+    if (idx !== -1) setActiveViewerUserIndex(idx);
+  };
 
   return (
-    <div className="w-full bg-white dark:bg-[#121212] rounded-2xl border border-gray-200/80 dark:border-[#262626] p-3.5 mb-4 shadow-xs overflow-hidden transition-colors">
-      <div className="flex items-center gap-4 overflow-x-auto no-scrollbar py-1">
-        
-        {/* Your Story (Current User) */}
-        {userData && (
-          <div
-            onClick={() => handleGetProfile(userData.userName)}
-            className="flex flex-col items-center gap-1.5 cursor-pointer flex-shrink-0 group"
-          >
-            <div className="relative w-[62px] h-[62px]">
-              <div className="w-full h-full rounded-full p-[2px] border-2 border-dashed border-gray-300 dark:border-gray-600 group-hover:border-[#e1306c] transition">
-                <img
-                  src={userData.profileImage || dp}
-                  alt="Your story"
-                  className="w-full h-full rounded-full object-cover"
-                />
-              </div>
-              <div className="absolute bottom-0 right-0 w-5 h-5 bg-[#0095f6] text-white rounded-full flex items-center justify-center font-bold text-xs border-2 border-white dark:border-[#121212] shadow-sm">
-                <IoAdd className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300 truncate max-w-[64px]">
-              Your story
-            </span>
-          </div>
-        )}
-
-        {/* Stories from connections */}
-        {storyList.map((user) => {
-          const isViewed = viewedStories[user._id];
-          return (
-            <div
-              key={user._id}
-              onClick={() => handleOpenStory(user)}
-              className="flex flex-col items-center gap-1.5 cursor-pointer flex-shrink-0 group"
-            >
+    <>
+      <div className="w-full bg-white dark:bg-[#121212] rounded-2xl border border-gray-200/80 dark:border-[#262626] p-3.5 mb-4 shadow-xs overflow-hidden transition-colors">
+        <div className="flex items-center gap-4 overflow-x-auto no-scrollbar py-1">
+          
+          {/* 1. CURRENT USER STORY AVATAR */}
+          {userData && (
+            <div className="flex flex-col items-center gap-1.5 cursor-pointer flex-shrink-0 group select-none">
               <div
-                className={`w-[62px] h-[62px] rounded-full p-[2.5px] transition-transform duration-150 group-hover:scale-105 ${
-                  isViewed ? "story-gradient-viewed" : "story-gradient"
-                }`}
+                className="relative w-[62px] h-[62px]"
+                onClick={handleOpenMyStory}
               >
-                <div className="w-full h-full rounded-full bg-white dark:bg-[#121212] p-[2px]">
-                  <img
-                    src={user.profileImage || dp}
-                    alt={user.firstName}
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                </div>
-              </div>
-              <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300 truncate max-w-[64px]">
-                {user.firstName}
-              </span>
-            </div>
-          );
-        })}
-
-      </div>
-
-      {/* Story Viewer Modal */}
-      {activeStory && (
-        <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
-          <div className="relative w-full max-w-[380px] h-[80vh] max-h-[640px] bg-gradient-to-br from-gray-900 to-black rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between p-4 border border-gray-800">
-            
-            {/* Story Top Progress Bar */}
-            <div>
-              <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden mb-3">
+                {/* Ring styling based on active story */}
                 <div
-                  className="h-full bg-white transition-all duration-75"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-
-              {/* Story User Info */}
-              <div className="flex items-center justify-between text-white">
-                <div className="flex items-center gap-2.5">
-                  <img
-                    src={activeStory.profileImage || dp}
-                    alt=""
-                    className="w-9 h-9 rounded-full object-cover border border-white/40"
-                  />
-                  <div>
-                    <p className="text-xs font-bold leading-none">{activeStory.firstName}</p>
-                    <p className="text-[10px] text-white/70">Story • Active</p>
+                  className={`w-full h-full rounded-full p-[2.5px] transition-transform duration-200 group-hover:scale-105 ${
+                    hasMyStories ? "story-gradient animate-pulse" : "border-2 border-dashed border-gray-300 dark:border-gray-600 group-hover:border-[#e1306c]"
+                  }`}
+                >
+                  <div className="w-full h-full rounded-full bg-white dark:bg-[#121212] p-[2px] overflow-hidden">
+                    <img
+                      src={userData.profileImage || dp}
+                      alt="Your story"
+                      className="w-full h-full rounded-full object-cover"
+                    />
                   </div>
                 </div>
 
+                {/* + Add Story Trigger Button */}
                 <button
-                  onClick={() => setActiveStory(null)}
-                  className="p-1.5 text-white/80 hover:text-white rounded-full hover:bg-white/10 transition"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsAddStoryOpen(true);
+                  }}
+                  className="absolute bottom-0 right-0 w-5 h-5 bg-gradient-to-r from-[#e1306c] to-[#833ab4] text-white rounded-full flex items-center justify-center font-bold text-xs border-2 border-white dark:border-[#121212] shadow-sm hover:scale-110 active:scale-95 transition"
+                  title="Add Story"
                 >
-                  <IoClose className="w-5 h-5" />
+                  <IoAdd className="w-3.5 h-3.5" />
                 </button>
               </div>
-            </div>
 
-            {/* Story Center Content */}
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 gap-3">
-              <div className="w-20 h-20 rounded-full story-gradient p-1 mb-2 animate-pulse">
-                <div className="w-full h-full rounded-full bg-black p-1">
-                  <img
-                    src={activeStory.profileImage || dp}
-                    alt=""
-                    className="w-full h-full rounded-full object-cover"
-                  />
+              <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300 truncate max-w-[66px]">
+                {hasMyStories ? "Your Story" : "Add Story"}
+              </span>
+            </div>
+          )}
+
+          {/* 2. STORIES FROM CONNECTED USERS */}
+          {otherStoriesGroups.map((group) => {
+            const hasUnviewed = group.hasUnviewed;
+            const user = group.user;
+            if (!user) return null;
+
+            return (
+              <div
+                key={user._id}
+                onClick={() => handleOpenOtherStory(group)}
+                className="flex flex-col items-center gap-1.5 cursor-pointer flex-shrink-0 group select-none"
+              >
+                <div
+                  className={`w-[62px] h-[62px] rounded-full p-[2.5px] transition-transform duration-200 group-hover:scale-105 ${
+                    hasUnviewed ? "story-gradient" : "story-gradient-viewed"
+                  }`}
+                >
+                  <div className="w-full h-full rounded-full bg-white dark:bg-[#121212] p-[2px] overflow-hidden">
+                    <img
+                      src={user.profileImage || dp}
+                      alt={user.firstName}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  </div>
                 </div>
+                <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300 truncate max-w-[66px]">
+                  {user.firstName}
+                </span>
               </div>
-              <h3 className="text-white text-lg font-bold">
-                {activeStory.firstName}'s Update
-              </h3>
-              <p className="text-white/80 text-xs max-w-[260px]">
-                Connecting, learning and sharing new knowledge on EduConnect! 🎓✨
-              </p>
-            </div>
+            );
+          })}
 
-            {/* Bottom Quick Reply */}
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                placeholder={`Reply to ${activeStory.firstName}...`}
-                className="w-full bg-white/10 border border-white/20 rounded-full px-4 py-2 text-xs text-white placeholder-white/50 outline-none focus:border-white/60 transition"
-              />
-            </div>
-
-          </div>
         </div>
+      </div>
+
+      {/* Add Story Modal */}
+      <AddStoryModal
+        isOpen={isAddStoryOpen}
+        onClose={() => setIsAddStoryOpen(false)}
+        onStoryCreated={() => fetchStoriesFeed()}
+      />
+
+      {/* Story Viewer Modal */}
+      {activeViewerUserIndex !== null && (
+        <StoryViewerModal
+          isOpen={activeViewerUserIndex !== null}
+          initialUserIndex={activeViewerUserIndex}
+          storyFeed={storiesFeed}
+          onClose={() => {
+            setActiveViewerUserIndex(null);
+            fetchStoriesFeed();
+          }}
+          onStoryDeleted={() => fetchStoriesFeed()}
+        />
       )}
-    </div>
+    </>
   );
 }

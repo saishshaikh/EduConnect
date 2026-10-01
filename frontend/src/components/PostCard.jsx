@@ -137,32 +137,47 @@ export default function PostCard({
       {/* 1. POST HEADER */}
       <div className="p-3.5 flex items-center justify-between">
         <div
-          onClick={() => author?.userName && handleGetProfile(author.userName)}
+          onClick={() => {
+            const uName = author?.userName || (author?._id === userData?._id ? userData?.userName : null);
+            if (uName) handleGetProfile(uName);
+          }}
           className="flex items-center gap-3 cursor-pointer group"
         >
-          <div className="w-10 h-10 rounded-full story-gradient p-[2px] transition-transform group-hover:scale-105">
+          <div className="w-10 h-10 rounded-full story-gradient p-[2px] transition-transform group-hover:scale-105 flex-shrink-0">
             <div className="w-full h-full rounded-full bg-white dark:bg-[#121212] p-[1.5px]">
               <img
-                src={author?.profileImage || dp}
-                alt={author?.firstName}
+                src={author?.profileImage || (author?._id === userData?._id ? userData?.profileImage : null) || dp}
+                alt="author"
                 className="w-full h-full rounded-full object-cover"
               />
             </div>
           </div>
 
-          <div className="leading-tight">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[14px] font-bold text-gray-900 dark:text-white group-hover:text-[#e1306c] transition">
-                {author ? `${author.firstName} ${author.lastName}` : "EduConnect User"}
+          <div className="leading-tight min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[14px] font-bold text-gray-900 dark:text-white group-hover:text-[#e1306c] transition truncate">
+                {(() => {
+                  if (author && typeof author === "object") {
+                    const fullName = `${author.firstName || ""} ${author.lastName || ""}`.trim();
+                    if (fullName) return fullName;
+                    if (author.userName) return `@${author.userName}`;
+                  }
+                  if ((author === userData?._id || author?._id === userData?._id) && userData) {
+                    const myName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim();
+                    if (myName) return myName;
+                    if (userData.userName) return `@${userData.userName}`;
+                  }
+                  return "EduConnect Scholar";
+                })()}
               </span>
               <span className="text-gray-400 dark:text-gray-500 text-xs">•</span>
               <span className="text-[12px] text-gray-400 dark:text-gray-500">
-                {createdAt ? moment(createdAt).fromNow(true) : ""}
+                {createdAt ? moment(createdAt).fromNow(true) : "just now"}
               </span>
             </div>
-            {author?.headline && (
+            {(author?.headline || (author?._id === userData?._id ? userData?.headline : null)) && (
               <p className="text-[12px] text-gray-500 dark:text-gray-400 truncate max-w-[240px] sm:max-w-[320px]">
-                {author.headline}
+                {author?.headline || userData?.headline}
               </p>
             )}
           </div>
@@ -281,10 +296,13 @@ export default function PostCard({
         {description && (
           <div className="text-gray-800 dark:text-gray-200 leading-relaxed">
             <span
-              onClick={() => author?.userName && handleGetProfile(author.userName)}
+              onClick={() => {
+                const uName = author?.userName || (author?._id === userData?._id ? userData?.userName : null);
+                if (uName) handleGetProfile(uName);
+              }}
               className="font-bold mr-2 text-gray-900 dark:text-white cursor-pointer hover:underline"
             >
-              {author?.userName || "user"}
+              {author?.userName || (author === userData?._id || author?._id === userData?._id ? userData?.userName : "user")}
             </span>
             <span>
               {expandedCaption || description.length <= 120
