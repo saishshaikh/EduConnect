@@ -1,104 +1,98 @@
 
 import Connection from "../models/connection.model.js"
 import User from "../models/user.model.js"
-import {io,userSocketMap} from "../index.js"
+import { io, userSocketMap, emitToUser } from "../index.js"
 import Notification from "../models/notification.model.js"
-export const sendConnection= async (req,res)=>{
+
+export const sendConnection = async (req, res) => {
     try {
-        let {id}=req.params
-        let sender=req.userId
- let user=await User.findById(sender)
+        let { id } = req.params
+        let sender = req.userId
+        let user = await User.findById(sender)
 
- if(sender==id){
-    return res.status(400).json({message:"you can not send request yourself"})
- }
+        if (sender == id) {
+            return res.status(400).json({ message: "you can not send request yourself" })
+        }
 
- if(user.connection.includes(id)){
-    return res.status(400).json({message:"you are already connected"})
- }
+        if (user.connection.includes(id)) {
+            return res.status(400).json({ message: "you are already connected" })
+        }
 
- let existingConnection=await Connection.findOne({
-    sender,
-    receiver:id,
-    status:"pending"
- })
- if(existingConnection){
-    return res.status(400).json({message:"request already exist"})
- }
+        let existingConnection = await Connection.findOne({
+            sender,
+            receiver: id,
+            status: "pending"
+        })
+        if (existingConnection) {
+            return res.status(400).json({ message: "request already exist" })
+        }
 
- let newRequest=await Connection.create({
-  sender,
-  receiver:id
- })
+        let newRequest = await Connection.create({
+            sender,
+            receiver: id
+        })
 
- let receiverSocketId=userSocketMap.get(id)
- let senderSocketId=userSocketMap.get(sender)
+        // Create and emit notification to receiver
+        let newNotification = await Notification.create({
+            receiver: id,
+            type: "connectionRequest",
+            relatedUser: sender,
+        })
 
-if(receiverSocketId){
-io.to(receiverSocketId).emit("statusUpdate",{updatedUserId:sender,newStatus:"received"})
-}
-if(senderSocketId){
-    io.to(senderSocketId).emit("statusUpdate",{updatedUserId:id,newStatus:"pending"})
-}
+        let populatedNotification = await Notification.findById(newNotification._id)
+            .populate("relatedUser", "firstName lastName userName profileImage headline");
 
+        emitToUser(id, "newNotification", populatedNotification);
+        emitToUser(id, "statusUpdate", { updatedUserId: sender, newStatus: "received" });
+        emitToUser(sender, "statusUpdate", { updatedUserId: id, newStatus: "pending" });
 
+        return res.status(200).json(newRequest)
 
-
- return res.status(200).json(newRequest)
-
-    } 
+    }
     catch (error) {
-      return res.status(500).json({message:`sendconnection error ${error}`}) 
+        return res.status(500).json({ message: `sendconnection error ${error}` })
     }
 }
 
-export const acceptConnection=async (req,res)=>{
+export const acceptConnection = async (req, res) => {
     try {
-        let {connectionId}=req.params
-        let userId=req.userId
-        let connection=await Connection.findById(connectionId)
+        let { connectionId } = req.params
+        let userId = req.userId
+        let connection = await Connection.findById(connectionId)
 
-        if(!connection){
-            return res.status(400).json({message:"connection does not exist"})
-        }
-    
-        if(connection.status!="pending"){
-            return res.status(400).json({message:"request under process"})
+        if (!connection) {
+            return res.status(400).json({ message: "connection does not exist" })
         }
 
+        if (connection.status != "pending") {
+            return res.status(400).json({ message: "request under process" })
+        }
 
-        connection.status="accepted"
-         let notification=await Notification.create({
-                    receiver:connection.sender,
-                    type:"connectionAccepted",
-                    relatedUser:userId,
-                   
-                })
+        connection.status = "accepted"
+        let notification = await Notification.create({
+            receiver: connection.sender,
+            type: "connectionAccepted",
+            relatedUser: userId,
+        })
         await connection.save()
-        await User.findByIdAndUpdate(req.userId,{
-            $addToSet:{connection:connection.sender._id}
+        await User.findByIdAndUpdate(req.userId, {
+            $addToSet: { connection: connection.sender._id }
         })
-        await User.findByIdAndUpdate(connection.sender._id,{
-            $addToSet:{connection:userId}
+        await User.findByIdAndUpdate(connection.sender._id, {
+            $addToSet: { connection: userId }
         })
 
+        let populatedNotification = await Notification.findById(notification._id)
+            .populate("relatedUser", "firstName lastName userName profileImage headline");
 
-        
- let receiverSocketId=userSocketMap.get(userId)
- let senderSocketId=userSocketMap.get(connection.sender._id.toString())
+        emitToUser(connection.sender._id.toString(), "newNotification", populatedNotification);
+        emitToUser(userId, "statusUpdate", { updatedUserId: connection.sender._id, newStatus: "disconnect" });
+        emitToUser(connection.sender._id.toString(), "statusUpdate", { updatedUserId: userId, newStatus: "disconnect" });
 
-if(receiverSocketId){
-io.to(receiverSocketId).emit("statusUpdate",{updatedUserId:connection.sender._id,newStatus:"disconnect"})
-}
-if(senderSocketId){
-    io.to(senderSocketId).emit("statusUpdate",{updatedUserId:userId,newStatus:"disconnect"})
-}
-
-        return res.status(200).json({message:"connection accepted"})
-
+        return res.status(200).json({ message: "connection accepted" })
 
     } catch (error) {
-        return res.status(500).json({message:`connection accepted error ${error}`})
+        return res.status(500).json({ message: `connection accepted error ${error}` })
     }
 }
 

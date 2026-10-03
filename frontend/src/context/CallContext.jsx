@@ -350,6 +350,27 @@ export const CallProvider = ({ children }) => {
       }
       setIncomingCall(data);
       startRingtone("incoming");
+
+      // Mobile vibration pattern for incoming call
+      try {
+        if (typeof navigator !== "undefined" && navigator.vibrate) {
+          navigator.vibrate([400, 200, 400, 200, 400, 200, 400]);
+        }
+      } catch {}
+
+      // Native Device Push Notification for incoming call
+      try {
+        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+          const callerName = `${data?.caller?.firstName || ""} ${data?.caller?.lastName || ""}`.trim() || "Someone";
+          const callLabel = data?.callType === "video" ? "Incoming Video Call 🎥" : "Incoming Voice Call 📞";
+          new Notification(callLabel, {
+            body: `${callerName} is calling you on EduConnect`,
+            icon: "/pwa-192x192.png",
+            tag: `call-${data.callId}`,
+            requireInteraction: true,
+          });
+        }
+      } catch {}
     };
 
     // Caller: Receiver Ringing

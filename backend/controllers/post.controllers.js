@@ -1,6 +1,6 @@
 import Post from "../models/post.model.js"
 import uploadOnCloudinary from "../config/cloudinary.js"
-import { io } from "../index.js"
+import { io, emitToUser } from "../index.js"
 import Notification from "../models/notification.model.js"
 
 export const createPost = async (req, res) => {
@@ -62,13 +62,17 @@ export const like = async (req, res) => {
         } else {
             post.like.push(userId)
 
-            if (post.author.toString() !== userId.toString()) { // ✅ Fixed
-                await Notification.create({
+            if (post.author.toString() !== userId.toString()) {
+                const notif = await Notification.create({
                     receiver: post.author,
                     type: "like",
                     relatedUser: userId,
                     relatedPost: postId
                 })
+                const populatedNotif = await Notification.findById(notif._id)
+                    .populate("relatedUser", "firstName lastName profileImage headline userName")
+                    .populate("relatedPost", "description image");
+                emitToUser(post.author.toString(), "newNotification", populatedNotif);
             }
         }
 
@@ -103,13 +107,17 @@ export const comment = async (req, res) => {
             return res.status(404).json({ message: "Post not found" })
         }
 
-        if (post.author.toString() !== userId.toString()) { // ✅ Fixed
-            await Notification.create({
+        if (post.author.toString() !== userId.toString()) {
+            const notif = await Notification.create({
                 receiver: post.author,
                 type: "comment",
                 relatedUser: userId,
                 relatedPost: postId
             })
+            const populatedNotif = await Notification.findById(notif._id)
+                .populate("relatedUser", "firstName lastName profileImage headline userName")
+                .populate("relatedPost", "description image");
+            emitToUser(post.author.toString(), "newNotification", populatedNotif);
         }
 
         io.emit("commentAdded", { postId, comm: post.comment })
@@ -120,4 +128,4 @@ export const comment = async (req, res) => {
         console.log(error)
         return res.status(500).json({ message: `Comment error: ${error}` })
     }
-}
+}

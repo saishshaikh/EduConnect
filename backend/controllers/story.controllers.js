@@ -2,6 +2,7 @@ import Story from "../models/story.model.js";
 import User from "../models/user.model.js";
 import uploadOnCloudinary from "../config/cloudinary.js";
 import { sanitizeString } from "../config/sanitize.js";
+import { emitToUser } from "../index.js";
 
 export const createStory = async (req, res) => {
     try {
@@ -44,6 +45,15 @@ export const createStory = async (req, res) => {
 
         const populatedStory = await Story.findById(newStory._id)
             .populate("user", "firstName lastName userName profileImage headline");
+
+        // Notify connections in real time
+        const authorUser = await User.findById(userId).select("connection");
+        if (authorUser?.connection && authorUser.connection.length > 0) {
+            authorUser.connection.forEach((connId) => {
+                const targetId = connId?._id ? connId._id.toString() : connId.toString();
+                emitToUser(targetId, "newStory", populatedStory);
+            });
+        }
 
         return res.status(201).json(populatedStory);
 
