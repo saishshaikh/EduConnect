@@ -261,51 +261,48 @@ io.on("connection", (socket) => {
         return socket.emit("call_failed", { message: "Invalid call receiver" });
       }
 
-      // Check if caller is already in an active call
+      // Self-healing: clear stale caller call
       if (userActiveCallMap.has(callerId)) {
-        return socket.emit("call_failed", { message: "You are already in an active call" });
+        const prevCallId = userActiveCallMap.get(callerId);
+        const prevSession = activeCalls.get(prevCallId);
+        if (!prevSession || prevSession.status === "ended" || prevSession.status === "rejected" || prevSession.status === "cancelled") {
+          userActiveCallMap.delete(callerId);
+        } else {
+          if (prevSession.timeoutTimer) clearTimeout(prevSession.timeoutTimer);
+          activeCalls.delete(prevCallId);
+          userActiveCallMap.delete(callerId);
+          userActiveCallMap.delete(prevSession.receiverId);
+        }
       }
 
-      // Check if receiver is already on another call
+      // Self-healing: clear stale receiver call
       if (userActiveCallMap.has(receiverId.toString())) {
-        // Record busy call
-        const busyCall = await Call.create({
-          caller: callerId,
-          receiver: receiverId,
-          conversation: conversationId,
-          callType,
-          status: "busy",
-          startedAt: new Date(),
-          endedAt: new Date(),
-        });
-        await recordCallInChat(
-          { callerId, receiverId, conversationId, callType, callId: busyCall._id },
-          "busy",
-          0
-        );
-
-        socket.emit("call_busy", { message: "User is currently busy on another call", receiverId });
-        emitToUser(receiverId, "call_missed_busy", { callerId, callType });
-        return;
+        const prevCallId = userActiveCallMap.get(receiverId.toString());
+        const prevSession = activeCalls.get(prevCallId);
+        if (!prevSession || prevSession.status === "ended" || prevSession.status === "rejected" || prevSession.status === "cancelled") {
+          userActiveCallMap.delete(receiverId.toString());
+        }
       }
 
       // Check if receiver is online
       const receiverSockets = getReceiverSocketIds(receiverId);
       if (receiverSockets.length === 0) {
-        const offlineCall = await Call.create({
-          caller: callerId,
-          receiver: receiverId,
-          conversation: conversationId,
-          callType,
-          status: "missed",
-          startedAt: new Date(),
-          endedAt: new Date(),
-        });
-        await recordCallInChat(
-          { callerId, receiverId, conversationId, callType, callId: offlineCall._id },
-          "missed",
-          0
-        );
+        try {
+          const offlineCall = await Call.create({
+            caller: callerId,
+            receiver: receiverId,
+            conversation: conversationId,
+            callType,
+            status: "missed",
+            startedAt: new Date(),
+            endedAt: new Date(),
+          });
+          await recordCallInChat(
+            { callerId, receiverId, conversationId, callType, callId: offlineCall._id },
+            "missed",
+            0
+          );
+        } catch {}
 
         socket.emit("call_failed", { message: "User is currently offline" });
         return;
@@ -545,9 +542,6 @@ io.on("connection", (socket) => {
   // 6. WebRTC SDP Offer
   socket.on("webrtc_offer", ({ callId, targetUserId, sdp }) => {
     if (!socket.userId || !targetUserId || !sdp) return;
-    const callSession = activeCalls.get(callId);
-    if (!callSession) return;
-
     emitToUser(targetUserId, "webrtc_offer", {
       callId,
       senderId: socket.userId,
@@ -558,9 +552,6 @@ io.on("connection", (socket) => {
   // 7. WebRTC SDP Answer
   socket.on("webrtc_answer", ({ callId, targetUserId, sdp }) => {
     if (!socket.userId || !targetUserId || !sdp) return;
-    const callSession = activeCalls.get(callId);
-    if (!callSession) return;
-
     emitToUser(targetUserId, "webrtc_answer", {
       callId,
       senderId: socket.userId,
@@ -571,9 +562,6 @@ io.on("connection", (socket) => {
   // 8. WebRTC ICE Candidate
   socket.on("webrtc_ice_candidate", ({ callId, targetUserId, candidate }) => {
     if (!socket.userId || !targetUserId || !candidate) return;
-    const callSession = activeCalls.get(callId);
-    if (!callSession) return;
-
     emitToUser(targetUserId, "webrtc_ice_candidate", {
       callId,
       senderId: socket.userId,

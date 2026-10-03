@@ -6,6 +6,16 @@ import { SocketContext } from "./SocketContext";
 
 export const CallContext = createContext();
 
+const DEFAULT_ICE_SERVERS = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
+  { urls: "stun:stun.services.mozilla.com" },
+  { urls: "stun:global.stun.twilio.com:3478" },
+];
+
 export const CallProvider = ({ children }) => {
   const { userData } = useContext(userDataContext);
   const { serverUrl } = useContext(authDataContext);
@@ -13,101 +23,98 @@ export const CallProvider = ({ children }) => {
 
   // Call States: 'idle' | 'calling' | 'ringing' | 'connecting' | 'connected' | 'ended' | 'rejected' | 'busy'
   const [callState, setCallState] = useState("idle");
-  const [callType, setCallType] = useState("voice"); // 'voice' | 'video'
+  const [callType, setCallType] = useState("voice");
   const [callId, setCallId] = useState(null);
-  const [activeCallUser, setActiveCallUser] = useState(null); // The other party
-  const [incomingCall, setIncomingCall] = useState(null); // { callId, caller, callType, conversationId }
+  const [activeCallUser, setActiveCallUser] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
-  const [facingMode, setFacingMode] = useState("user"); // 'user' | 'environment'
+  const [facingMode, setFacingMode] = useState("user");
   const [callError, setCallError] = useState("");
+  const [remoteStreamState, setRemoteStreamState] = useState(null);
 
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const durationTimerRef = useRef(null);
-  const ringtoneOscillatorsRef = useRef([]);
+  const iceCandidateQueueRef = useRef([]);
+  const ringtoneCtxRef = useRef(null);
+  const isPlayingRingtoneRef = useRef(false);
 
-  const [iceServers, setIceServers] = useState([
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-  ]);
+  const [iceServers, setIceServers] = useState(DEFAULT_ICE_SERVERS);
 
-  // Fetch ICE servers from backend configuration
+  // Fetch ICE servers if backend provides extra TURN/STUN
   useEffect(() => {
-    if (userData?._id) {
+    if (userData?._id && serverUrl) {
       axios
         .get(`${serverUrl}/api/call/config`, { withCredentials: true })
         .then((res) => {
           if (res.data?.iceServers?.length) {
-            setIceServers(res.data.iceServers);
+            setIceServers([...DEFAULT_ICE_SERVERS, ...res.data.iceServers]);
           }
         })
         .catch(() => {});
     }
   }, [userData?._id, serverUrl]);
 
-  // Ringtone synthesizer (Web Audio API)
-  const startRingtone = (type = "incoming") => {
+  // Audio synthesizer for ringing tones
+  const stopRingtone = useCallback(() => {
+    isPlayingRingtoneRef.current = false;
+    if (ringtoneCtxRef.current) {
+      try {
+        ringtoneCtxRef.current.close();
+      } catch {}
+      ringtoneCtxRef.current = null;
+    }
+  }, []);
+
+  const startRingtone = useCallback((type = "incoming") => {
     stopRingtone();
+    isPlayingRingtoneRef.current = true;
+
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      ringtoneCtxRef.current = audioCtx;
+
       const gainNode = audioCtx.createGain();
       gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
       gainNode.connect(audioCtx.destination);
 
-      let isPlaying = true;
-
       const playTone = () => {
-        if (!isPlaying) return;
-        const osc = audioCtx.createOscillator();
+        if (!isPlayingRingtoneRef.current || !ringtoneCtxRef.current) return;
+        const ctx = ringtoneCtxRef.current;
+        if (ctx.state === "suspended") ctx.resume();
+
+        const osc = ctx.createOscillator();
         osc.type = "sine";
 
         if (type === "incoming") {
-          // Melodic ringtone
-          osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
-          osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.15); // E5
-          osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.3); // G5
+          osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+          osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.15);
+          osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.3);
         } else {
-          // Outgoing calling beep
-          osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(440, ctx.currentTime);
         }
 
         osc.connect(gainNode);
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.45);
+        osc.stop(ctx.currentTime + 0.45);
 
         setTimeout(() => {
-          if (isPlaying) playTone();
+          if (isPlayingRingtoneRef.current) playTone();
         }, type === "incoming" ? 1800 : 2500);
       };
 
       playTone();
-
-      ringtoneOscillatorsRef.current = {
-        stop: () => {
-          isPlaying = false;
-          try {
-            audioCtx.close();
-          } catch {}
-        },
-      };
     } catch {}
-  };
+  }, [stopRingtone]);
 
-  const stopRingtone = () => {
-    if (ringtoneOscillatorsRef.current?.stop) {
-      ringtoneOscillatorsRef.current.stop();
-      ringtoneOscillatorsRef.current = null;
-    }
-  };
-
-  // Clean all media streams and WebRTC peer connection
-  const cleanupMediaAndPeer = () => {
+  // Cleanup helper
+  const cleanupMediaAndPeer = useCallback(() => {
     stopRingtone();
+    iceCandidateQueueRef.current = [];
 
     if (durationTimerRef.current) {
       clearInterval(durationTimerRef.current);
@@ -116,34 +123,62 @@ export const CallProvider = ({ children }) => {
 
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => {
-        track.stop();
+        try {
+          track.stop();
+        } catch {}
       });
       localStreamRef.current = null;
     }
 
     if (peerConnectionRef.current) {
-      peerConnectionRef.current.onicecandidate = null;
-      peerConnectionRef.current.ontrack = null;
-      peerConnectionRef.current.onconnectionstatechange = null;
-      peerConnectionRef.current.close();
+      try {
+        peerConnectionRef.current.onicecandidate = null;
+        peerConnectionRef.current.ontrack = null;
+        peerConnectionRef.current.onconnectionstatechange = null;
+        peerConnectionRef.current.oniceconnectionstatechange = null;
+        peerConnectionRef.current.close();
+      } catch {}
       peerConnectionRef.current = null;
     }
 
     remoteStreamRef.current = null;
+    setRemoteStreamState(null);
     setIsMuted(false);
     setIsVideoOff(false);
     setCallDuration(0);
-  };
+  }, [stopRingtone]);
 
-  // Create RTCPeerConnection with event handlers
-  const createPeerConnection = (targetUserId, currentCallId) => {
-    const pc = new RTCPeerConnection({ iceServers });
+  // Flush queued ICE Candidates once remote description is set
+  const processCandidateQueue = useCallback(async (pc) => {
+    if (!pc || !pc.remoteDescription) return;
+    while (iceCandidateQueueRef.current.length > 0) {
+      const candidate = iceCandidateQueueRef.current.shift();
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (e) {
+        console.warn("Error adding queued ICE candidate:", e);
+      }
+    }
+  }, []);
+
+  // Create RTCPeerConnection with bulletproof candidate queuing
+  const createPeerConnection = useCallback((targetUserId, currentCallId) => {
+    if (peerConnectionRef.current) {
+      try {
+        peerConnectionRef.current.close();
+      } catch {}
+    }
+
+    const pc = new RTCPeerConnection({
+      iceServers,
+      iceCandidatePoolSize: 10,
+    });
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && socket) {
+      if (event.candidate && socket && targetUserId) {
         socket.emit("webrtc_ice_candidate", {
           callId: currentCallId,
-          targetUserId,
+          targetUserId: targetUserId.toString(),
           candidate: event.candidate,
         });
       }
@@ -152,6 +187,9 @@ export const CallProvider = ({ children }) => {
     pc.ontrack = (event) => {
       if (event.streams && event.streams[0]) {
         remoteStreamRef.current = event.streams[0];
+        setRemoteStreamState(event.streams[0]);
+        setCallState("connected");
+        stopRingtone();
       }
     };
 
@@ -170,9 +208,16 @@ export const CallProvider = ({ children }) => {
       }
     };
 
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+        setCallState("connected");
+        stopRingtone();
+      }
+    };
+
     peerConnectionRef.current = pc;
     return pc;
-  };
+  }, [iceServers, socket, callState, stopRingtone]);
 
   // 1. Start Call (Caller side)
   const startCall = async (targetUser, type = "voice", conversationId) => {
@@ -186,7 +231,6 @@ export const CallProvider = ({ children }) => {
     startRingtone("outgoing");
 
     try {
-      // Acquire real user microphone / camera
       const constraints = {
         audio: true,
         video: type === "video" ? { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } : false,
@@ -196,7 +240,7 @@ export const CallProvider = ({ children }) => {
       localStreamRef.current = stream;
 
       socket.emit("call_initiate", {
-        receiverId: targetUser._id,
+        receiverId: targetUser._id.toString(),
         callType: type,
         conversationId,
       });
@@ -206,8 +250,8 @@ export const CallProvider = ({ children }) => {
       setCallState("idle");
       setCallError(
         type === "video"
-          ? "Camera/Microphone permission is required for video calls."
-          : "Microphone permission is required for voice calls."
+          ? "Camera/Microphone permission required for video call."
+          : "Microphone permission required for voice call."
       );
       cleanupMediaAndPeer();
     }
@@ -234,54 +278,53 @@ export const CallProvider = ({ children }) => {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = stream;
 
-      const pc = createPeerConnection(currentIncoming.caller._id, currentIncoming.callId);
+      const callerId = currentIncoming.caller?._id || currentIncoming.caller;
+      const pc = createPeerConnection(callerId, currentIncoming.callId);
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
       socket.emit("call_accept", { callId: currentIncoming.callId });
 
-      // Start duration counter
-      durationTimerRef.current = setInterval(() => {
-        setCallDuration((prev) => prev + 1);
-      }, 1000);
+      if (!durationTimerRef.current) {
+        durationTimerRef.current = setInterval(() => {
+          setCallDuration((prev) => prev + 1);
+        }, 1000);
+      }
     } catch (err) {
       console.error("Accept call media error:", err);
-      setCallError("Could not access media devices.");
+      setCallError("Could not access camera/microphone.");
       rejectCall();
     }
   };
 
   // 3. Reject Call
   const rejectCall = () => {
-    stopRingtone();
     if (incomingCall && socket) {
       socket.emit("call_reject", { callId: incomingCall.callId });
-      setIncomingCall(null);
     }
+    stopRingtone();
+    setIncomingCall(null);
     cleanupMediaAndPeer();
     setCallState("idle");
   };
 
-  // 4. Cancel Call (Caller cancels before answered)
+  // 4. Cancel Call (Caller cancels before answer)
   const cancelCall = () => {
-    stopRingtone();
     if (callId && socket) {
       socket.emit("call_cancel", { callId });
     }
+    stopRingtone();
     cleanupMediaAndPeer();
     setCallState("idle");
-    setActiveCallUser(null);
   };
 
-  // 5. End Call (Active call)
+  // 5. End Call (during active call)
   const endCall = () => {
-    stopRingtone();
     if (callId && socket) {
       socket.emit("call_end", { callId, duration: callDuration });
     }
     cleanupMediaAndPeer();
-    setCallState("idle");
-    setActiveCallUser(null);
-    setCallId(null);
+    setCallState("ended");
+    setTimeout(() => setCallState("idle"), 1500);
   };
 
   // 6. Toggle Mute
@@ -306,7 +349,7 @@ export const CallProvider = ({ children }) => {
     }
   };
 
-  // 8. Switch Front/Rear Camera on Mobile
+  // 8. Flip Camera
   const flipCamera = async () => {
     if (!localStreamRef.current || callType !== "video" || !peerConnectionRef.current) return;
 
@@ -342,7 +385,7 @@ export const CallProvider = ({ children }) => {
   useEffect(() => {
     if (!socket) return;
 
-    // Incoming Call
+    // Incoming Call Handler
     const handleCallIncoming = (data) => {
       if (callState !== "idle") {
         socket.emit("call_reject", { callId: data.callId });
@@ -351,14 +394,12 @@ export const CallProvider = ({ children }) => {
       setIncomingCall(data);
       startRingtone("incoming");
 
-      // Mobile vibration pattern for incoming call
       try {
         if (typeof navigator !== "undefined" && navigator.vibrate) {
           navigator.vibrate([400, 200, 400, 200, 400, 200, 400]);
         }
       } catch {}
 
-      // Native Device Push Notification for incoming call
       try {
         if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
           const callerName = `${data?.caller?.firstName || ""} ${data?.caller?.lastName || ""}`.trim() || "Someone";
@@ -379,7 +420,7 @@ export const CallProvider = ({ children }) => {
       setCallState("ringing");
     };
 
-    // Caller: Receiver Accepted -> Send WebRTC Offer
+    // Caller: Receiver Accepted -> Create Offer
     const handleCallAccepted = async ({ callId: cId, receiverId }) => {
       stopRingtone();
       setCallId(cId);
@@ -391,7 +432,10 @@ export const CallProvider = ({ children }) => {
       localStreamRef.current.getTracks().forEach((track) => pc.addTrack(track, localStreamRef.current));
 
       try {
-        const offer = await pc.createOffer();
+        const offer = await pc.createOffer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: callType === "video",
+        });
         await pc.setLocalDescription(offer);
 
         socket.emit("webrtc_offer", {
@@ -400,7 +444,6 @@ export const CallProvider = ({ children }) => {
           sdp: offer,
         });
 
-        // Start duration counter on caller side
         if (!durationTimerRef.current) {
           durationTimerRef.current = setInterval(() => {
             setCallDuration((prev) => prev + 1);
@@ -416,6 +459,8 @@ export const CallProvider = ({ children }) => {
       const pc = peerConnectionRef.current || createPeerConnection(senderId, cId);
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+        await processCandidateQueue(pc);
+
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
 
@@ -434,24 +479,29 @@ export const CallProvider = ({ children }) => {
       if (peerConnectionRef.current) {
         try {
           await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(sdp));
+          await processCandidateQueue(peerConnectionRef.current);
         } catch (err) {
           console.error("Error setting remote description:", err);
         }
       }
     };
 
-    // Handle ICE Candidate
+    // Handle ICE Candidate with Queueing
     const handleWebRtcCandidate = async ({ candidate }) => {
       if (peerConnectionRef.current && candidate) {
-        try {
-          await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-        } catch (err) {
-          console.error("Error adding ICE candidate:", err);
+        const pc = peerConnectionRef.current;
+        if (pc.remoteDescription && pc.remoteDescription.type) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (err) {
+            console.error("Error adding ICE candidate directly:", err);
+          }
+        } else {
+          iceCandidateQueueRef.current.push(candidate);
         }
       }
     };
 
-    // Call End / Rejected / Cancelled / Busy / Timeout
     const handleCallEnded = () => {
       cleanupMediaAndPeer();
       setCallState("ended");
@@ -520,17 +570,13 @@ export const CallProvider = ({ children }) => {
       socket.off("call_timeout", handleCallTimeout);
       socket.off("call_failed", handleCallFailed);
     };
-  }, [socket, callState, callId, iceServers]);
+  }, [socket, callState, callId, iceServers, createPeerConnection, processCandidateQueue, cleanupMediaAndPeer, startRingtone, stopRingtone, callType]);
 
-  // 9. Toggle Speaker / Loudspeaker
   const toggleSpeaker = (audioElements = []) => {
     setIsSpeakerOn((prev) => {
       const next = !prev;
       audioElements.forEach((el) => {
-        if (el) {
-          el.muted = !next;
-          el.volume = next ? 1.0 : 0.0;
-        }
+        if (el) el.muted = !next;
       });
       return next;
     });
@@ -548,11 +594,9 @@ export const CallProvider = ({ children }) => {
     isSpeakerOn,
     facingMode,
     callError,
-    setCallError,
-    localStream: localStreamRef.current,
-    remoteStream: remoteStreamRef.current,
     localStreamRef,
     remoteStreamRef,
+    remoteStreamState,
     startCall,
     acceptCall,
     rejectCall,

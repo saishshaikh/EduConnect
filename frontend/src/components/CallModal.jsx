@@ -51,7 +51,7 @@ export const CallModal = () => {
     return `${mins < 10 ? "0" : ""}${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
-  // Attach local and remote media streams to video/audio elements
+  // Attach local and remote media streams to video/audio elements with auto-play
   useEffect(() => {
     if (callState === "calling" || callState === "ringing" || callState === "connecting" || callState === "connected") {
       const interval = setInterval(() => {
@@ -59,18 +59,21 @@ export const CallModal = () => {
         if (localVideoElementRef.current && localStreamRef.current) {
           if (localVideoElementRef.current.srcObject !== localStreamRef.current) {
             localVideoElementRef.current.srcObject = localStreamRef.current;
+            localVideoElementRef.current.play().catch(() => {});
           }
         }
         // Remote stream
         if (remoteStreamRef.current) {
           if (remoteVideoElementRef.current && remoteVideoElementRef.current.srcObject !== remoteStreamRef.current) {
             remoteVideoElementRef.current.srcObject = remoteStreamRef.current;
+            remoteVideoElementRef.current.play().catch(() => {});
           }
           if (remoteAudioElementRef.current && remoteAudioElementRef.current.srcObject !== remoteStreamRef.current) {
             remoteAudioElementRef.current.srcObject = remoteStreamRef.current;
+            remoteAudioElementRef.current.play().catch(() => {});
           }
         }
-      }, 300);
+      }, 200);
 
       return () => clearInterval(interval);
     }
