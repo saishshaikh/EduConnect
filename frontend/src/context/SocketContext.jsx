@@ -25,7 +25,7 @@ const playSound = (type = "message") => {
       osc.frequency.setValueAtTime(587.33, now); // D5
       osc.frequency.exponentialRampToValueAtTime(880, now + 0.12); // A5
 
-      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.setValueAtTime(0.18, now);
       gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
 
       osc.connect(gain);
@@ -38,7 +38,7 @@ const playSound = (type = "message") => {
       osc.frequency.setValueAtTime(523.25, now); // C5
       osc.frequency.exponentialRampToValueAtTime(1046.5, now + 0.18); // C6
 
-      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.setValueAtTime(0.15, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
 
       osc.connect(gain);
@@ -51,7 +51,7 @@ const playSound = (type = "message") => {
       osc.frequency.setValueAtTime(659.25, now); // E5
       osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.15); // G5
 
-      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.setValueAtTime(0.18, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
 
       osc.connect(gain);
@@ -77,14 +77,13 @@ const triggerNativeNotification = async (title, options = {}) => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
 
     if (Notification.permission === "granted") {
-      // If service worker is registered, use showNotification for better mobile push behavior
       if ("serviceWorker" in navigator) {
         const registration = await navigator.serviceWorker.ready;
         if (registration && registration.showNotification) {
           registration.showNotification(title, {
             icon: "/pwa-192x192.png",
             badge: "/pwa-192x192.png",
-            vibrate: [200, 100, 200],
+            vibrate: [300, 150, 300],
             ...options,
           });
           return;
@@ -109,10 +108,16 @@ export const SocketProvider = ({ children }) => {
   const [typingUsers, setTypingUsers] = useState({});
   const [unreadTotal, setUnreadTotal] = useState(0);
   const [activeConversationId, setActiveConversationId] = useState(null);
+  const activeConversationIdRef = useRef(null);
   const [activeToast, setActiveToast] = useState(null);
 
   const { userData } = useContext(userDataContext);
   const { serverUrl } = useContext(authDataContext);
+
+  // Keep activeConversationIdRef in sync without triggering socket re-creation
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
 
   // Request browser notification permission once user is authenticated
   useEffect(() => {
@@ -134,19 +139,30 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    const newSocket = io(serverUrl || "http://localhost:8000", {
+    const targetUrl = serverUrl || "https://educonnect-backendd.onrender.com";
+
+    const newSocket = io(targetUrl, {
       query: { userId: userData._id },
       auth: { userId: userData._id },
       withCredentials: true,
-      transports: ["websocket", "polling"],
-      reconnectionAttempts: 15,
+      transports: ["polling", "websocket"],
+      reconnection: true,
+      reconnectionAttempts: 50,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
     });
 
     socketRef.current = newSocket;
     setSocket(newSocket);
 
     newSocket.on("connect", () => {
+      console.log("[EduConnect Socket] Connected successfully:", newSocket.id);
+      newSocket.emit("register", userData._id);
+    });
+
+    newSocket.on("reconnect", () => {
+      console.log("[EduConnect Socket] Reconnected:", newSocket.id);
       newSocket.emit("register", userData._id);
     });
 
@@ -189,14 +205,16 @@ export const SocketProvider = ({ children }) => {
         : message?.content || "Sent a message";
 
       // If user is not currently in the open conversation with this sender, alert them
-      const isViewingThisChat = activeConversationId && (
-        activeConversationId === payload?.conversation?._id || 
-        activeConversationId === payload?.conversationId
+      const currentActiveId = activeConversationIdRef.current;
+      const isViewingThisChat = currentActiveId && (
+        currentActiveId === payload?.conversation?._id || 
+        currentActiveId === payload?.conversationId ||
+        currentActiveId === message?.conversationId
       );
 
       if (!isViewingThisChat) {
         playSound("message");
-        triggerVibration([100, 50, 100]);
+        triggerVibration([120, 60, 120]);
 
         // In-app Instagram-style toast
         setActiveToast({
@@ -312,12 +330,12 @@ export const SocketProvider = ({ children }) => {
       });
     });
 
-    // Heartbeat mechanism every 30 seconds
+    // Heartbeat mechanism every 25 seconds
     const heartbeatInterval = setInterval(() => {
       if (newSocket && newSocket.connected) {
         newSocket.emit("heartbeat");
       }
-    }, 30000);
+    }, 25000);
 
     const handleWindowFocus = () => {
       if (newSocket && newSocket.connected) {
@@ -333,7 +351,7 @@ export const SocketProvider = ({ children }) => {
       socketRef.current = null;
       setSocket(null);
     };
-  }, [userData?._id, serverUrl, activeConversationId]);
+  }, [userData?._id, serverUrl]);
 
   // Typing helper with debouncing
   const typingTimeoutsRef = useRef({});
