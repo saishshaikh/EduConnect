@@ -9,6 +9,9 @@ import SocketProvider from './context/SocketContext.jsx'
 import CallProvider from './context/CallContext.jsx'
 
 import ThemeProvider from './context/ThemeContext.jsx'
+import { registerSW } from 'virtual:pwa-register'
+
+registerSW({ immediate: true })
 
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
