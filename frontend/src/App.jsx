@@ -12,12 +12,14 @@ import Notification from './pages/Notification'
 import Chat from './pages/Chat'
 import Explore from './pages/Explore'
 import CallModal from './components/CallModal'
+import PwaInstallPrompt from './components/PwaInstallPrompt'
 
 function App() {
   let {userData}=useContext(userDataContext)
   return (
     <>
       <CallModal />
+      <PwaInstallPrompt />
       <Routes>
         <Route path='/' element={userData?<Home/>:<Navigate to="/login"/>}/>
         <Route path='/feed' element={userData?<Feed/>:<Navigate to="/login"/>}/>
